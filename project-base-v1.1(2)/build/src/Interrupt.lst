@@ -1,0 +1,3154 @@
+GAS LISTING /tmp/ccehoCYN.s 			page 1
+
+
+   1              		.file	"Interrupt.cpp"
+   2              		.option pic
+   3              		.option norelax
+   4              		.text
+   5              	.Ltext0:
+   6              		.align	2
+   7              		.globl	_Z5flushv
+   9              	_Z5flushv:
+  10              	.LFB26:
+  11              		.file 1 "src/Interrupt.cpp"
+   1:src/Interrupt.cpp **** //
+   2:src/Interrupt.cpp **** // Created by os on 5/27/22.
+   3:src/Interrupt.cpp **** //
+   4:src/Interrupt.cpp **** #include "../lib/hw.h"
+   5:src/Interrupt.cpp **** #include "../lib/console.h"
+   6:src/Interrupt.cpp **** #include "../h/MemoryAllocator.h"
+   7:src/Interrupt.cpp **** #include "../h/CThread.h"
+   8:src/Interrupt.cpp **** #include "../h/CSemaphore.h"
+   9:src/Interrupt.cpp **** #include "../h/print.h"
+  10:src/Interrupt.cpp **** #include "../h/Sleep.h"
+  11:src/Interrupt.cpp **** #include "../h/GetBuffer.h"
+  12:src/Interrupt.cpp **** #include "../h/PutBuffer.h"
+  13:src/Interrupt.cpp **** #include "../h/syscall_cpp.hpp"
+  14:src/Interrupt.cpp **** void flush();
+  15:src/Interrupt.cpp **** extern "C" void interrupt() {
+  16:src/Interrupt.cpp ****     uint64 a7;
+  17:src/Interrupt.cpp ****     asm volatile("sd a7,%0":"=m"(a7));
+  18:src/Interrupt.cpp ****     uint64 a6;
+  19:src/Interrupt.cpp ****     asm volatile("sd  a6,%0":"=m"(a6));
+  20:src/Interrupt.cpp ****     uint64 a5;
+  21:src/Interrupt.cpp ****     asm volatile("sd  a5,%0":"=m"(a5));
+  22:src/Interrupt.cpp ****     uint64 a4;
+  23:src/Interrupt.cpp ****     asm volatile("sd  a4,%0":"=m"(a4));
+  24:src/Interrupt.cpp ****     uint64 a3;
+  25:src/Interrupt.cpp ****     asm volatile("sd  a3,%0":"=m"(a3));
+  26:src/Interrupt.cpp ****     uint64 a2;
+  27:src/Interrupt.cpp ****     asm volatile("sd  a2,%0":"=m"(a2));
+  28:src/Interrupt.cpp ****     uint64 a1;
+  29:src/Interrupt.cpp ****     asm volatile("sd  a1,%0":"=m"(a1));
+  30:src/Interrupt.cpp ****     uint64 a0;
+  31:src/Interrupt.cpp ****     asm volatile("sd  a0,%0":"=m"(a0));
+  32:src/Interrupt.cpp ****     uint64 scause;
+  33:src/Interrupt.cpp ****     asm volatile("csrr %0, scause":"=r"(scause));
+  34:src/Interrupt.cpp **** 
+  35:src/Interrupt.cpp **** 
+  36:src/Interrupt.cpp **** 
+  37:src/Interrupt.cpp ****     switch (scause) {
+  38:src/Interrupt.cpp ****         case 0x8 :
+  39:src/Interrupt.cpp ****         case 0x09: {
+  40:src/Interrupt.cpp **** 
+  41:src/Interrupt.cpp ****             uint64 tmp;
+  42:src/Interrupt.cpp ****             asm volatile("csrr %0, sscratch":"=r"(tmp));
+  43:src/Interrupt.cpp ****             switch (a0) {
+  44:src/Interrupt.cpp ****                 case 0x01: {
+  45:src/Interrupt.cpp ****                     //memory allocation
+  46:src/Interrupt.cpp ****                     uint64 incPC;
+  47:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+GAS LISTING /tmp/ccehoCYN.s 			page 2
+
+
+  48:src/Interrupt.cpp ****                     incPC += 4;
+  49:src/Interrupt.cpp **** 
+  50:src/Interrupt.cpp **** 
+  51:src/Interrupt.cpp ****                     void *ret = MemoryAllocator::getInstance().allocate(a1);
+  52:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+  53:src/Interrupt.cpp **** 
+  54:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+  55:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+  56:src/Interrupt.cpp **** 
+  57:src/Interrupt.cpp ****                     break;
+  58:src/Interrupt.cpp ****                 }
+  59:src/Interrupt.cpp ****                 case 0x02: {
+  60:src/Interrupt.cpp ****                     uint64 incPC;
+  61:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+  62:src/Interrupt.cpp ****                     incPC += 4;
+  63:src/Interrupt.cpp **** 
+  64:src/Interrupt.cpp ****                     //memory deallocation
+  65:src/Interrupt.cpp ****                     MemoryAllocator::getInstance().deallocate(reinterpret_cast<void *>(a1));
+  66:src/Interrupt.cpp **** 
+  67:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+  68:src/Interrupt.cpp **** 
+  69:src/Interrupt.cpp ****                     break;
+  70:src/Interrupt.cpp ****                 }
+  71:src/Interrupt.cpp **** 
+  72:src/Interrupt.cpp ****                 case 0x11: {
+  73:src/Interrupt.cpp ****                     uint64 incPC;
+  74:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+  75:src/Interrupt.cpp ****                     incPC += 4;
+  76:src/Interrupt.cpp **** 
+  77:src/Interrupt.cpp ****                     //thread create
+  78:src/Interrupt.cpp ****                     CThread **thr = reinterpret_cast<CThread **>(a1);
+  79:src/Interrupt.cpp ****                     CThread::Body b = reinterpret_cast<void (*)(void *)>(a2);
+  80:src/Interrupt.cpp ****                     void *arg = reinterpret_cast<void *>(a3);
+  81:src/Interrupt.cpp ****                     int ret = CThread::createThread(thr, b, arg);
+  82:src/Interrupt.cpp **** 
+  83:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+  84:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+  85:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+  86:src/Interrupt.cpp **** 
+  87:src/Interrupt.cpp ****                     break;
+  88:src/Interrupt.cpp ****                 }
+  89:src/Interrupt.cpp ****                 case 0x12: {
+  90:src/Interrupt.cpp ****                     uint64 incPC;
+  91:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+  92:src/Interrupt.cpp ****                     incPC += 4;
+  93:src/Interrupt.cpp **** 
+  94:src/Interrupt.cpp ****                     //thread exit
+  95:src/Interrupt.cpp ****                     CThread::running->status = CThread::FINISHED;
+  96:src/Interrupt.cpp ****                     CThread::yield();
+  97:src/Interrupt.cpp ****                     int ret = 0;
+  98:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+  99:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 100:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 101:src/Interrupt.cpp **** 
+ 102:src/Interrupt.cpp ****                     break;
+ 103:src/Interrupt.cpp ****                 }
+ 104:src/Interrupt.cpp ****                 case 0x13: {
+GAS LISTING /tmp/ccehoCYN.s 			page 3
+
+
+ 105:src/Interrupt.cpp ****                     uint64 incPC;
+ 106:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 107:src/Interrupt.cpp ****                     incPC += 4;
+ 108:src/Interrupt.cpp **** 
+ 109:src/Interrupt.cpp ****                     //thread dispatch
+ 110:src/Interrupt.cpp ****                     uint64 sstatus;
+ 111:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 112:src/Interrupt.cpp **** 
+ 113:src/Interrupt.cpp ****                     CThread::yield();
+ 114:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 115:src/Interrupt.cpp **** 
+ 116:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 117:src/Interrupt.cpp **** 
+ 118:src/Interrupt.cpp ****                     break;
+ 119:src/Interrupt.cpp ****                 }
+ 120:src/Interrupt.cpp ****                 case 0x14: {
+ 121:src/Interrupt.cpp ****                     uint64 incPC;
+ 122:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 123:src/Interrupt.cpp ****                     incPC += 4;
+ 124:src/Interrupt.cpp **** 
+ 125:src/Interrupt.cpp ****                     //thread start
+ 126:src/Interrupt.cpp ****                     Scheduler::getInstance().put(reinterpret_cast<CThread *>(a1));
+ 127:src/Interrupt.cpp **** 
+ 128:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 129:src/Interrupt.cpp **** 
+ 130:src/Interrupt.cpp ****                     break;
+ 131:src/Interrupt.cpp ****                 }
+ 132:src/Interrupt.cpp **** 
+ 133:src/Interrupt.cpp ****                 case 0x21: {
+ 134:src/Interrupt.cpp ****                     uint64 incPC;
+ 135:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 136:src/Interrupt.cpp ****                     incPC += 4;
+ 137:src/Interrupt.cpp **** 
+ 138:src/Interrupt.cpp **** 
+ 139:src/Interrupt.cpp ****                     //semaphore open
+ 140:src/Interrupt.cpp ****                     CSemaphore** handle = reinterpret_cast<CSemaphore **>(a1);
+ 141:src/Interrupt.cpp ****                     unsigned int init=a2;
+ 142:src/Interrupt.cpp ****                     int ret = CSemaphore::open(handle, init);
+ 143:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 144:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 145:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 146:src/Interrupt.cpp **** 
+ 147:src/Interrupt.cpp ****                     break;
+ 148:src/Interrupt.cpp ****                 }
+ 149:src/Interrupt.cpp ****                 case 0x22: {
+ 150:src/Interrupt.cpp ****                     uint64 incPC;
+ 151:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 152:src/Interrupt.cpp ****                     incPC += 4;
+ 153:src/Interrupt.cpp **** 
+ 154:src/Interrupt.cpp ****                     //semaphore close
+ 155:src/Interrupt.cpp ****                     CSemaphore* handle = reinterpret_cast<CSemaphore *>(a1);
+ 156:src/Interrupt.cpp ****                     int ret = CSemaphore::close(handle);
+ 157:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 158:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 159:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 160:src/Interrupt.cpp **** 
+ 161:src/Interrupt.cpp ****                     break;
+GAS LISTING /tmp/ccehoCYN.s 			page 4
+
+
+ 162:src/Interrupt.cpp ****                 }
+ 163:src/Interrupt.cpp ****                 case 0x23: {
+ 164:src/Interrupt.cpp ****                     //semaphore wait
+ 165:src/Interrupt.cpp ****                     uint64 incPC;
+ 166:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 167:src/Interrupt.cpp ****                     incPC += 4;
+ 168:src/Interrupt.cpp **** 
+ 169:src/Interrupt.cpp **** 
+ 170:src/Interrupt.cpp ****                     uint64 sstatus;
+ 171:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 172:src/Interrupt.cpp **** 
+ 173:src/Interrupt.cpp ****                     CSemaphore* handle = reinterpret_cast<CSemaphore *>(a1);
+ 174:src/Interrupt.cpp ****                     int ret = handle->wait();
+ 175:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 176:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 177:src/Interrupt.cpp **** 
+ 178:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 179:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 180:src/Interrupt.cpp **** 
+ 181:src/Interrupt.cpp **** 
+ 182:src/Interrupt.cpp ****                     break;
+ 183:src/Interrupt.cpp ****                 }
+ 184:src/Interrupt.cpp ****                 case 0x24: {
+ 185:src/Interrupt.cpp ****                     uint64 incPC;
+ 186:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 187:src/Interrupt.cpp ****                     incPC += 4;
+ 188:src/Interrupt.cpp **** 
+ 189:src/Interrupt.cpp **** 
+ 190:src/Interrupt.cpp ****                     //semaphore signal
+ 191:src/Interrupt.cpp ****                     CSemaphore* handle = reinterpret_cast<CSemaphore *>(a1);
+ 192:src/Interrupt.cpp ****                     int ret = handle->signal();
+ 193:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 194:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 195:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 196:src/Interrupt.cpp **** 
+ 197:src/Interrupt.cpp ****                     break;
+ 198:src/Interrupt.cpp ****                 }
+ 199:src/Interrupt.cpp **** 
+ 200:src/Interrupt.cpp ****                 case 0x31: {
+ 201:src/Interrupt.cpp ****                     //sleep
+ 202:src/Interrupt.cpp ****                     uint64 incPC;
+ 203:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 204:src/Interrupt.cpp ****                     incPC += 4;
+ 205:src/Interrupt.cpp **** 
+ 206:src/Interrupt.cpp **** 
+ 207:src/Interrupt.cpp ****                     uint64 sstatus;
+ 208:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 209:src/Interrupt.cpp **** 
+ 210:src/Interrupt.cpp ****                     time_t time = a1;
+ 211:src/Interrupt.cpp ****                     Sleep::sleep(time);
+ 212:src/Interrupt.cpp **** 
+ 213:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 214:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 215:src/Interrupt.cpp **** 
+ 216:src/Interrupt.cpp ****                     break;
+ 217:src/Interrupt.cpp ****                 }
+ 218:src/Interrupt.cpp **** 
+GAS LISTING /tmp/ccehoCYN.s 			page 5
+
+
+ 219:src/Interrupt.cpp ****                 case 0x41: {
+ 220:src/Interrupt.cpp ****                     //getc
+ 221:src/Interrupt.cpp ****                     uint64 incPC;
+ 222:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 223:src/Interrupt.cpp ****                     incPC += 4;
+ 224:src/Interrupt.cpp **** 
+ 225:src/Interrupt.cpp ****                     uint64 sstatus;
+ 226:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 227:src/Interrupt.cpp **** 
+ 228:src/Interrupt.cpp ****                     char ret = GetBuffer::getBuffer->get();
+ 229:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 230:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 231:src/Interrupt.cpp **** 
+ 232:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 233:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 234:src/Interrupt.cpp **** 
+ 235:src/Interrupt.cpp ****                     break;
+ 236:src/Interrupt.cpp ****                 }
+ 237:src/Interrupt.cpp ****                 case 0x42: {
+ 238:src/Interrupt.cpp ****                     //putc
+ 239:src/Interrupt.cpp ****                     uint64 incPC;
+ 240:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 241:src/Interrupt.cpp ****                     incPC += 4;
+ 242:src/Interrupt.cpp **** 
+ 243:src/Interrupt.cpp ****                     uint64 sstatus;
+ 244:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 245:src/Interrupt.cpp **** 
+ 246:src/Interrupt.cpp ****                     PutBuffer::putBuffer->put(a1);
+ 247:src/Interrupt.cpp ****                     flush();
+ 248:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 249:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 250:src/Interrupt.cpp **** 
+ 251:src/Interrupt.cpp ****                     break;
+ 252:src/Interrupt.cpp ****                 }
+ 253:src/Interrupt.cpp **** 
+ 254:src/Interrupt.cpp ****                 case 0x51:{
+ 255:src/Interrupt.cpp ****                     // start user mode
+ 256:src/Interrupt.cpp ****                     uint64 incPC;
+ 257:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 258:src/Interrupt.cpp ****                     uint64 temp;
+ 259:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus" : "=r" (temp));
+ 260:src/Interrupt.cpp ****                     temp &= ~0x100;
+ 261:src/Interrupt.cpp ****                     asm volatile("csrw sstatus, %0" : : "r" (temp));
+ 262:src/Interrupt.cpp ****                     incPC+=4;
+ 263:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0" : : "r" (incPC));
+ 264:src/Interrupt.cpp **** 
+ 265:src/Interrupt.cpp ****                     break;
+ 266:src/Interrupt.cpp ****                 }
+ 267:src/Interrupt.cpp ****                 case 0x52:{
+ 268:src/Interrupt.cpp ****                     uint64 incPC;
+ 269:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 270:src/Interrupt.cpp ****                     uint64 temp;
+ 271:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus" : "=r" (temp));
+ 272:src/Interrupt.cpp ****                     temp |= 0x100;
+ 273:src/Interrupt.cpp ****                     asm volatile("csrw sstatus, %0" : : "r" (temp));
+ 274:src/Interrupt.cpp ****                     incPC+=4;
+ 275:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0" : : "r" (incPC));
+GAS LISTING /tmp/ccehoCYN.s 			page 6
+
+
+ 276:src/Interrupt.cpp **** 
+ 277:src/Interrupt.cpp ****                     break;
+ 278:src/Interrupt.cpp ****                 }
+ 279:src/Interrupt.cpp ****                 default: {
+ 280:src/Interrupt.cpp ****                     break;
+ 281:src/Interrupt.cpp ****                 }
+ 282:src/Interrupt.cpp ****             }
+ 283:src/Interrupt.cpp **** 
+ 284:src/Interrupt.cpp **** 
+ 285:src/Interrupt.cpp ****             break;
+ 286:src/Interrupt.cpp ****             /*return;*/
+ 287:src/Interrupt.cpp ****         }
+ 288:src/Interrupt.cpp ****         case 0x8000000000000009UL: {
+ 289:src/Interrupt.cpp ****             if(plic_claim()==CONSOLE_IRQ){
+ 290:src/Interrupt.cpp ****                 uint8* status = (uint8*)CONSOLE_STATUS;
+ 291:src/Interrupt.cpp ****                 if(*status & CONSOLE_RX_STATUS_BIT){
+ 292:src/Interrupt.cpp ****                     //getc
+ 293:src/Interrupt.cpp ****                     uint8 *get = (uint8 *) CONSOLE_RX_DATA;
+ 294:src/Interrupt.cpp ****                     if(*get == 'K')
+ 295:src/Interrupt.cpp ****                         PeriodicThread::flag = !PeriodicThread::flag;
+ 296:src/Interrupt.cpp ****                     else
+ 297:src/Interrupt.cpp ****                         GetBuffer::getBuffer->put(*get);
+ 298:src/Interrupt.cpp ****                 }
+ 299:src/Interrupt.cpp ****                 if(*status & CONSOLE_TX_STATUS_BIT){
+ 300:src/Interrupt.cpp ****                     //putc
+ 301:src/Interrupt.cpp ****                     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+ 302:src/Interrupt.cpp ****                         uint8 *put = (uint8 *) CONSOLE_TX_DATA;
+ 303:src/Interrupt.cpp ****                         char c = (PutBuffer::putBuffer->get());
+ 304:src/Interrupt.cpp ****                         if(c=='\0') break;
+ 305:src/Interrupt.cpp ****                         else *put = c;
+ 306:src/Interrupt.cpp ****                     }
+ 307:src/Interrupt.cpp ****                 }
+ 308:src/Interrupt.cpp ****                 plic_complete(CONSOLE_IRQ);
+ 309:src/Interrupt.cpp ****             }
+ 310:src/Interrupt.cpp **** 
+ 311:src/Interrupt.cpp ****             break;
+ 312:src/Interrupt.cpp ****         }
+ 313:src/Interrupt.cpp ****         case 0x8000000000000001UL: {
+ 314:src/Interrupt.cpp ****             //timer shit ass
+ 315:src/Interrupt.cpp **** 
+ 316:src/Interrupt.cpp ****             CThread* cur = Sleep::headSleep;
+ 317:src/Interrupt.cpp ****             for(int i = 0; i<Sleep::count; i++, cur = cur->next){
+ 318:src/Interrupt.cpp ****                if(cur== nullptr)break;
+ 319:src/Interrupt.cpp ****                 if(--(cur->sleepTime)<=0){
+ 320:src/Interrupt.cpp ****                     Sleep::count--;
+ 321:src/Interrupt.cpp ****                     Sleep::headSleep = Sleep::headSleep->next;
+ 322:src/Interrupt.cpp ****                     Scheduler::getInstance().put(cur);
+ 323:src/Interrupt.cpp ****                 }
+ 324:src/Interrupt.cpp ****             }
+ 325:src/Interrupt.cpp **** 
+ 326:src/Interrupt.cpp ****             uint64 sepc;
+ 327:src/Interrupt.cpp ****             asm volatile("csrr %0, sepc":"=r"(sepc));
+ 328:src/Interrupt.cpp ****             uint64 sstatus;
+ 329:src/Interrupt.cpp ****             asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 330:src/Interrupt.cpp **** 
+ 331:src/Interrupt.cpp ****             if(++CThread::time == DEFAULT_TIME_SLICE) {
+ 332:src/Interrupt.cpp ****                 CThread::time = 0;
+GAS LISTING /tmp/ccehoCYN.s 			page 7
+
+
+ 333:src/Interrupt.cpp ****                 CThread::yield();
+ 334:src/Interrupt.cpp ****             }
+ 335:src/Interrupt.cpp **** 
+ 336:src/Interrupt.cpp ****             asm volatile("csrw sstatus, %0": :"r"(sstatus));
+ 337:src/Interrupt.cpp ****             asm volatile("csrw sepc, %0": :"r"(sepc));
+ 338:src/Interrupt.cpp **** 
+ 339:src/Interrupt.cpp ****             asm volatile("csrc sip, 0x02");
+ 340:src/Interrupt.cpp ****             break;
+ 341:src/Interrupt.cpp ****         }
+ 342:src/Interrupt.cpp ****         default: {
+ 343:src/Interrupt.cpp ****            /* uint64 scause;
+ 344:src/Interrupt.cpp ****             asm volatile("csrr %0, scause":"=r"(scause));
+ 345:src/Interrupt.cpp ****             uint64 sepc;
+ 346:src/Interrupt.cpp ****             asm volatile("csrr %0, sepc":"=r"(sepc));
+ 347:src/Interrupt.cpp ****             sepc+=4;
+ 348:src/Interrupt.cpp ****             asm volatile("csrw sepc, %0": :"r"(sepc));*/
+ 349:src/Interrupt.cpp ****             break;
+ 350:src/Interrupt.cpp ****         }
+ 351:src/Interrupt.cpp ****     }
+ 352:src/Interrupt.cpp **** 
+ 353:src/Interrupt.cpp **** }
+ 354:src/Interrupt.cpp **** 
+ 355:src/Interrupt.cpp **** void flush(){
+  12              		.loc 1 355 13
+  13              		.cfi_startproc
+  14 0000 130101FE 		addi	sp,sp,-32
+  15              		.cfi_def_cfa_offset 32
+  16 0004 233C1100 		sd	ra,24(sp)
+  17 0008 23388100 		sd	s0,16(sp)
+  18 000c 23349100 		sd	s1,8(sp)
+  19 0010 23302101 		sd	s2,0(sp)
+  20              		.cfi_offset 1, -8
+  21              		.cfi_offset 8, -16
+  22              		.cfi_offset 9, -24
+  23              		.cfi_offset 18, -32
+  24 0014 13040102 		addi	s0,sp,32
+  25              		.cfi_def_cfa 8, 0
+ 356:src/Interrupt.cpp ****     uint8* status = (uint8*)CONSOLE_STATUS;
+  26              		.loc 1 356 5
+  27              		.loc 1 356 12 is_stmt 0
+  28 0018 97070000 		la	a5,CONSOLE_STATUS
+  28      83B70700 
+  29 0020 03B90700 		ld	s2,0(a5)
+  30              	.LVL0:
+  31 0024 6F008000 		j	.L3
+  32              	.LVL1:
+  33              	.L5:
+  34              	.LBB2:
+ 357:src/Interrupt.cpp ****     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+ 358:src/Interrupt.cpp ****         uint8 *put = (uint8 *) CONSOLE_TX_DATA;
+ 359:src/Interrupt.cpp ****         char c = (PutBuffer::putBuffer->get());
+ 360:src/Interrupt.cpp ****         if(c=='\0') break;
+ 361:src/Interrupt.cpp ****         else *put = c;
+  35              		.loc 1 361 14 is_stmt 1
+  36              		.loc 1 361 19 is_stmt 0
+  37 0028 2380A400 		sb	a0,0(s1)
+  38              	.LVL2:
+GAS LISTING /tmp/ccehoCYN.s 			page 8
+
+
+  39              	.L3:
+  40              	.LBE2:
+ 357:src/Interrupt.cpp ****     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+  41              		.loc 1 357 5 is_stmt 1
+ 357:src/Interrupt.cpp ****     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+  42              		.loc 1 357 44
+ 357:src/Interrupt.cpp ****     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+  43              		.loc 1 357 39 is_stmt 0
+  44 002c 97070000 		la	a5,_ZN9PutBuffer9putBufferE
+  44      83B70700 
+  45 0034 03B50700 		ld	a0,0(a5)
+  46 0038 97000000 		call	_ZN9PutBuffer6getCntEv@plt
+  46      E7800000 
+  47              	.LVL3:
+ 357:src/Interrupt.cpp ****     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+  48              		.loc 1 357 44
+  49 0040 635AA002 		blez	a0,.L1
+ 357:src/Interrupt.cpp ****     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+  50              		.loc 1 357 48 discriminator 1
+  51 0044 83470900 		lbu	a5,0(s2)
+ 357:src/Interrupt.cpp ****     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+  52              		.loc 1 357 44 discriminator 1
+  53 0048 93F70702 		andi	a5,a5,32
+  54 004c 63840702 		beqz	a5,.L1
+  55              	.LBB3:
+ 358:src/Interrupt.cpp ****         char c = (PutBuffer::putBuffer->get());
+  56              		.loc 1 358 9 is_stmt 1
+ 358:src/Interrupt.cpp ****         char c = (PutBuffer::putBuffer->get());
+  57              		.loc 1 358 16 is_stmt 0
+  58 0050 97070000 		la	a5,CONSOLE_TX_DATA
+  58      83B70700 
+  59 0058 83B40700 		ld	s1,0(a5)
+  60              	.LVL4:
+ 359:src/Interrupt.cpp ****         if(c=='\0') break;
+  61              		.loc 1 359 9 is_stmt 1
+ 359:src/Interrupt.cpp ****         if(c=='\0') break;
+  62              		.loc 1 359 44 is_stmt 0
+  63 005c 97070000 		la	a5,_ZN9PutBuffer9putBufferE
+  63      83B70700 
+  64 0064 03B50700 		ld	a0,0(a5)
+  65 0068 97000000 		call	_ZN9PutBuffer3getEv@plt
+  65      E7800000 
+  66              	.LVL5:
+ 360:src/Interrupt.cpp ****         else *put = c;
+  67              		.loc 1 360 9 is_stmt 1
+  68 0070 E31C05FA 		bnez	a0,.L5
+  69              	.LVL6:
+  70              	.L1:
+  71              	.LBE3:
+ 362:src/Interrupt.cpp ****     }
+ 363:src/Interrupt.cpp **** }...
+  72              		.loc 1 363 1 is_stmt 0
+  73 0074 83308101 		ld	ra,24(sp)
+  74              		.cfi_restore 1
+  75 0078 03340101 		ld	s0,16(sp)
+  76              		.cfi_restore 8
+  77              		.cfi_def_cfa 2, 32
+GAS LISTING /tmp/ccehoCYN.s 			page 9
+
+
+  78 007c 83348100 		ld	s1,8(sp)
+  79              		.cfi_restore 9
+  80 0080 03390100 		ld	s2,0(sp)
+  81              		.cfi_restore 18
+  82              	.LVL7:
+  83 0084 13010102 		addi	sp,sp,32
+  84              		.cfi_def_cfa_offset 0
+  85 0088 67800000 		jr	ra
+  86              		.cfi_endproc
+  87              	.LFE26:
+  89              		.align	2
+  90              		.globl	interrupt
+  92              	interrupt:
+  93              	.LFB25:
+  15:src/Interrupt.cpp **** extern "C" void interrupt() {
+  94              		.loc 1 15 29 is_stmt 1
+  95              		.cfi_startproc
+  96 008c 130101F9 		addi	sp,sp,-112
+  97              		.cfi_def_cfa_offset 112
+  98 0090 23341106 		sd	ra,104(sp)
+  99 0094 23308106 		sd	s0,96(sp)
+ 100 0098 233C9104 		sd	s1,88(sp)
+ 101 009c 23382105 		sd	s2,80(sp)
+ 102 00a0 23343105 		sd	s3,72(sp)
+ 103              		.cfi_offset 1, -8
+ 104              		.cfi_offset 8, -16
+ 105              		.cfi_offset 9, -24
+ 106              		.cfi_offset 18, -32
+ 107              		.cfi_offset 19, -40
+ 108 00a4 13040107 		addi	s0,sp,112
+ 109              		.cfi_def_cfa 8, 0
+  16:src/Interrupt.cpp ****     uint64 a7;
+ 110              		.loc 1 16 5
+  17:src/Interrupt.cpp ****     asm volatile("sd a7,%0":"=m"(a7));
+ 111              		.loc 1 17 5
+  17:src/Interrupt.cpp ****     asm volatile("sd a7,%0":"=m"(a7));
+ 112              		.loc 1 17 38 is_stmt 0
+ 113              	#APP
+ 114              	# 17 "src/Interrupt.cpp" 1
+  18:src/Interrupt.cpp ****     uint64 a6;
+ 115              		sd a7,-56(s0)
+ 116              	# 0 "" 2
+ 117              		.loc 1 18 5 is_stmt 1
+  19:src/Interrupt.cpp ****     asm volatile("sd  a6,%0":"=m"(a6));
+ 118              		.loc 1 19 5
+  19:src/Interrupt.cpp ****     asm volatile("sd  a6,%0":"=m"(a6));
+ 119              		.loc 1 19 39 is_stmt 0
+ 120              	# 19 "src/Interrupt.cpp" 1
+  20:src/Interrupt.cpp ****     uint64 a5;
+ 121              		sd  a6,-64(s0)
+ 122              	# 0 "" 2
+ 123              		.loc 1 20 5 is_stmt 1
+  21:src/Interrupt.cpp ****     asm volatile("sd  a5,%0":"=m"(a5));
+ 124              		.loc 1 21 5
+  21:src/Interrupt.cpp ****     asm volatile("sd  a5,%0":"=m"(a5));
+ 125              		.loc 1 21 39 is_stmt 0
+ 126              	# 21 "src/Interrupt.cpp" 1
+GAS LISTING /tmp/ccehoCYN.s 			page 10
+
+
+  22:src/Interrupt.cpp ****     uint64 a4;
+ 127              		sd  a5,-72(s0)
+ 128              	# 0 "" 2
+ 129              		.loc 1 22 5 is_stmt 1
+  23:src/Interrupt.cpp ****     asm volatile("sd  a4,%0":"=m"(a4));
+ 130              		.loc 1 23 5
+  23:src/Interrupt.cpp ****     asm volatile("sd  a4,%0":"=m"(a4));
+ 131              		.loc 1 23 39 is_stmt 0
+ 132              	# 23 "src/Interrupt.cpp" 1
+  24:src/Interrupt.cpp ****     uint64 a3;
+ 133              		sd  a4,-80(s0)
+ 134              	# 0 "" 2
+ 135              		.loc 1 24 5 is_stmt 1
+  25:src/Interrupt.cpp ****     asm volatile("sd  a3,%0":"=m"(a3));
+ 136              		.loc 1 25 5
+  25:src/Interrupt.cpp ****     asm volatile("sd  a3,%0":"=m"(a3));
+ 137              		.loc 1 25 39 is_stmt 0
+ 138              	# 25 "src/Interrupt.cpp" 1
+  26:src/Interrupt.cpp ****     uint64 a2;
+ 139              		sd  a3,-88(s0)
+ 140              	# 0 "" 2
+ 141              		.loc 1 26 5 is_stmt 1
+  27:src/Interrupt.cpp ****     asm volatile("sd  a2,%0":"=m"(a2));
+ 142              		.loc 1 27 5
+  27:src/Interrupt.cpp ****     asm volatile("sd  a2,%0":"=m"(a2));
+ 143              		.loc 1 27 39 is_stmt 0
+ 144              	# 27 "src/Interrupt.cpp" 1
+  28:src/Interrupt.cpp ****     uint64 a1;
+ 145              		sd  a2,-96(s0)
+ 146              	# 0 "" 2
+ 147              		.loc 1 28 5 is_stmt 1
+  29:src/Interrupt.cpp ****     asm volatile("sd  a1,%0":"=m"(a1));
+ 148              		.loc 1 29 5
+  29:src/Interrupt.cpp ****     asm volatile("sd  a1,%0":"=m"(a1));
+ 149              		.loc 1 29 39 is_stmt 0
+ 150              	# 29 "src/Interrupt.cpp" 1
+  30:src/Interrupt.cpp ****     uint64 a0;
+ 151              		sd  a1,-104(s0)
+ 152              	# 0 "" 2
+ 153              		.loc 1 30 5 is_stmt 1
+  31:src/Interrupt.cpp ****     asm volatile("sd  a0,%0":"=m"(a0));
+ 154              		.loc 1 31 5
+  31:src/Interrupt.cpp ****     asm volatile("sd  a0,%0":"=m"(a0));
+ 155              		.loc 1 31 39 is_stmt 0
+ 156              	# 31 "src/Interrupt.cpp" 1
+  32:src/Interrupt.cpp ****     uint64 scause;
+ 157              		sd  a0,-112(s0)
+ 158              	# 0 "" 2
+ 159              		.loc 1 32 5 is_stmt 1
+  33:src/Interrupt.cpp ****     asm volatile("csrr %0, scause":"=r"(scause));
+ 160              		.loc 1 33 5
+  33:src/Interrupt.cpp ****     asm volatile("csrr %0, scause":"=r"(scause));
+ 161              		.loc 1 33 49 is_stmt 0
+ 162              	# 33 "src/Interrupt.cpp" 1
+ 163              		csrr a5, scause
+ 164              	# 0 "" 2
+ 165              	.LVL8:
+GAS LISTING /tmp/ccehoCYN.s 			page 11
+
+
+  37:src/Interrupt.cpp ****     switch (scause) {
+ 166              		.loc 1 37 5 is_stmt 1
+ 167              	#NO_APP
+ 168              	.LBB4:
+ 169 00cc 1307F0FF 		li	a4,-1
+ 170 00d0 1317F703 		slli	a4,a4,63
+ 171 00d4 13071700 		addi	a4,a4,1
+ 172 00d8 6388E738 		beq	a5,a4,.L7
+ 173 00dc 1307F0FF 		li	a4,-1
+ 174 00e0 1317F703 		slli	a4,a4,63
+ 175 00e4 13071700 		addi	a4,a4,1
+ 176 00e8 636EF702 		bgtu	a5,a4,.L8
+ 177 00ec 938787FF 		addi	a5,a5,-8
+ 178              	.LVL9:
+ 179 00f0 13071000 		li	a4,1
+ 180 00f4 6366F742 		bgtu	a5,a4,.L6
+ 181              	.LBE4:
+  38:src/Interrupt.cpp ****         case 0x8 :
+ 182              		.loc 1 38 9
+  39:src/Interrupt.cpp ****         case 0x09: {
+ 183              		.loc 1 39 9
+  39:src/Interrupt.cpp ****         case 0x09: {
+ 184              		.loc 1 39 20
+ 185              	.LBB39:
+ 186              	.LBB5:
+  41:src/Interrupt.cpp ****             uint64 tmp;
+ 187              		.loc 1 41 13
+  42:src/Interrupt.cpp ****             asm volatile("csrr %0, sscratch":"=r"(tmp));
+ 188              		.loc 1 42 13
+  42:src/Interrupt.cpp ****             asm volatile("csrr %0, sscratch":"=r"(tmp));
+ 189              		.loc 1 42 56 is_stmt 0
+ 190              	#APP
+ 191              	# 42 "src/Interrupt.cpp" 1
+ 192              		csrr s1, sscratch
+ 193              	# 0 "" 2
+ 194              	.LVL10:
+  43:src/Interrupt.cpp ****             switch (a0) {
+ 195              		.loc 1 43 13 is_stmt 1
+ 196              	#NO_APP
+ 197              	.LBB6:
+ 198 00fc 833704F9 		ld	a5,-112(s0)
+ 199              	.LVL11:
+ 200 0100 13072005 		li	a4,82
+ 201 0104 636EF740 		bgtu	a5,a4,.L6
+ 202 0108 93972700 		slli	a5,a5,2
+ 203 010c 17070000 		lla	a4,.L13
+ 203      13070700 
+ 204 0114 B387E700 		add	a5,a5,a4
+ 205 0118 83A70700 		lw	a5,0(a5)
+ 206 011c B387E700 		add	a5,a5,a4
+ 207 0120 67800700 		jr	a5
+ 208              		.section	.rodata
+ 209              		.align	2
+ 210              		.align	2
+ 211              	.L13:
+ 212 0000 00000000 		.word	.L6-.L13
+ 213 0004 00000000 		.word	.L27-.L13
+GAS LISTING /tmp/ccehoCYN.s 			page 12
+
+
+ 214 0008 00000000 		.word	.L26-.L13
+ 215 000c 00000000 		.word	.L6-.L13
+ 216 0010 00000000 		.word	.L6-.L13
+ 217 0014 00000000 		.word	.L6-.L13
+ 218 0018 00000000 		.word	.L6-.L13
+ 219 001c 00000000 		.word	.L6-.L13
+ 220 0020 00000000 		.word	.L6-.L13
+ 221 0024 00000000 		.word	.L6-.L13
+ 222 0028 00000000 		.word	.L6-.L13
+ 223 002c 00000000 		.word	.L6-.L13
+ 224 0030 00000000 		.word	.L6-.L13
+ 225 0034 00000000 		.word	.L6-.L13
+ 226 0038 00000000 		.word	.L6-.L13
+ 227 003c 00000000 		.word	.L6-.L13
+ 228 0040 00000000 		.word	.L6-.L13
+ 229 0044 00000000 		.word	.L25-.L13
+ 230 0048 00000000 		.word	.L24-.L13
+ 231 004c 00000000 		.word	.L23-.L13
+ 232 0050 00000000 		.word	.L22-.L13
+ 233 0054 00000000 		.word	.L6-.L13
+ 234 0058 00000000 		.word	.L6-.L13
+ 235 005c 00000000 		.word	.L6-.L13
+ 236 0060 00000000 		.word	.L6-.L13
+ 237 0064 00000000 		.word	.L6-.L13
+ 238 0068 00000000 		.word	.L6-.L13
+ 239 006c 00000000 		.word	.L6-.L13
+ 240 0070 00000000 		.word	.L6-.L13
+ 241 0074 00000000 		.word	.L6-.L13
+ 242 0078 00000000 		.word	.L6-.L13
+ 243 007c 00000000 		.word	.L6-.L13
+ 244 0080 00000000 		.word	.L6-.L13
+ 245 0084 00000000 		.word	.L21-.L13
+ 246 0088 00000000 		.word	.L20-.L13
+ 247 008c 00000000 		.word	.L19-.L13
+ 248 0090 00000000 		.word	.L18-.L13
+ 249 0094 00000000 		.word	.L6-.L13
+ 250 0098 00000000 		.word	.L6-.L13
+ 251 009c 00000000 		.word	.L6-.L13
+ 252 00a0 00000000 		.word	.L6-.L13
+ 253 00a4 00000000 		.word	.L6-.L13
+ 254 00a8 00000000 		.word	.L6-.L13
+ 255 00ac 00000000 		.word	.L6-.L13
+ 256 00b0 00000000 		.word	.L6-.L13
+ 257 00b4 00000000 		.word	.L6-.L13
+ 258 00b8 00000000 		.word	.L6-.L13
+ 259 00bc 00000000 		.word	.L6-.L13
+ 260 00c0 00000000 		.word	.L6-.L13
+ 261 00c4 00000000 		.word	.L17-.L13
+ 262 00c8 00000000 		.word	.L6-.L13
+ 263 00cc 00000000 		.word	.L6-.L13
+ 264 00d0 00000000 		.word	.L6-.L13
+ 265 00d4 00000000 		.word	.L6-.L13
+ 266 00d8 00000000 		.word	.L6-.L13
+ 267 00dc 00000000 		.word	.L6-.L13
+ 268 00e0 00000000 		.word	.L6-.L13
+ 269 00e4 00000000 		.word	.L6-.L13
+ 270 00e8 00000000 		.word	.L6-.L13
+GAS LISTING /tmp/ccehoCYN.s 			page 13
+
+
+ 271 00ec 00000000 		.word	.L6-.L13
+ 272 00f0 00000000 		.word	.L6-.L13
+ 273 00f4 00000000 		.word	.L6-.L13
+ 274 00f8 00000000 		.word	.L6-.L13
+ 275 00fc 00000000 		.word	.L6-.L13
+ 276 0100 00000000 		.word	.L6-.L13
+ 277 0104 00000000 		.word	.L16-.L13
+ 278 0108 00000000 		.word	.L15-.L13
+ 279 010c 00000000 		.word	.L6-.L13
+ 280 0110 00000000 		.word	.L6-.L13
+ 281 0114 00000000 		.word	.L6-.L13
+ 282 0118 00000000 		.word	.L6-.L13
+ 283 011c 00000000 		.word	.L6-.L13
+ 284 0120 00000000 		.word	.L6-.L13
+ 285 0124 00000000 		.word	.L6-.L13
+ 286 0128 00000000 		.word	.L6-.L13
+ 287 012c 00000000 		.word	.L6-.L13
+ 288 0130 00000000 		.word	.L6-.L13
+ 289 0134 00000000 		.word	.L6-.L13
+ 290 0138 00000000 		.word	.L6-.L13
+ 291 013c 00000000 		.word	.L6-.L13
+ 292 0140 00000000 		.word	.L6-.L13
+ 293 0144 00000000 		.word	.L14-.L13
+ 294 0148 00000000 		.word	.L12-.L13
+ 295              		.text
+ 296              	.LVL12:
+ 297              	.L8:
+ 298              	.LBE6:
+ 299              	.LBE5:
+  37:src/Interrupt.cpp ****     switch (scause) {
+ 300              		.loc 1 37 5 is_stmt 0
+ 301 0124 1307F0FF 		li	a4,-1
+ 302 0128 1317F703 		slli	a4,a4,63
+ 303 012c 13079700 		addi	a4,a4,9
+ 304 0130 6398E73E 		bne	a5,a4,.L6
+ 305              	.LBE39:
+ 288:src/Interrupt.cpp ****         case 0x8000000000000009UL: {
+ 306              		.loc 1 288 9 is_stmt 1
+ 288:src/Interrupt.cpp ****         case 0x8000000000000009UL: {
+ 307              		.loc 1 288 36
+ 289:src/Interrupt.cpp ****             if(plic_claim()==CONSOLE_IRQ){
+ 308              		.loc 1 289 13
+ 309              	.LBB40:
+ 310              	.LBB24:
+ 289:src/Interrupt.cpp ****             if(plic_claim()==CONSOLE_IRQ){
+ 311              		.loc 1 289 26 is_stmt 0
+ 312 0134 97000000 		call	plic_claim@plt
+ 312      E7800000 
+ 313              	.LVL13:
+ 289:src/Interrupt.cpp ****             if(plic_claim()==CONSOLE_IRQ){
+ 314              		.loc 1 289 13
+ 315 013c 9307A000 		li	a5,10
+ 316 0140 6310F53E 		bne	a0,a5,.L6
+ 317              	.LBB25:
+ 290:src/Interrupt.cpp ****                 uint8* status = (uint8*)CONSOLE_STATUS;
+ 318              		.loc 1 290 17 is_stmt 1
+ 290:src/Interrupt.cpp ****                 uint8* status = (uint8*)CONSOLE_STATUS;
+GAS LISTING /tmp/ccehoCYN.s 			page 14
+
+
+ 319              		.loc 1 290 24 is_stmt 0
+ 320 0144 97070000 		la	a5,CONSOLE_STATUS
+ 320      83B70700 
+ 321 014c 03B90700 		ld	s2,0(a5)
+ 322              	.LVL14:
+ 291:src/Interrupt.cpp ****                 if(*status & CONSOLE_RX_STATUS_BIT){
+ 323              		.loc 1 291 17 is_stmt 1
+ 324              	.LBB26:
+ 291:src/Interrupt.cpp ****                 if(*status & CONSOLE_RX_STATUS_BIT){
+ 325              		.loc 1 291 20 is_stmt 0
+ 326 0150 83470900 		lbu	a5,0(s2)
+ 291:src/Interrupt.cpp ****                 if(*status & CONSOLE_RX_STATUS_BIT){
+ 327              		.loc 1 291 17
+ 328 0154 93F71700 		andi	a5,a5,1
+ 329 0158 63880702 		beqz	a5,.L28
+ 330              	.LBB27:
+ 293:src/Interrupt.cpp ****                     uint8 *get = (uint8 *) CONSOLE_RX_DATA;
+ 331              		.loc 1 293 21 is_stmt 1
+ 293:src/Interrupt.cpp ****                     uint8 *get = (uint8 *) CONSOLE_RX_DATA;
+ 332              		.loc 1 293 28 is_stmt 0
+ 333 015c 97070000 		la	a5,CONSOLE_RX_DATA
+ 333      83B70700 
+ 334 0164 83B70700 		ld	a5,0(a5)
+ 335              	.LVL15:
+ 294:src/Interrupt.cpp ****                     if(*get == 'K')
+ 336              		.loc 1 294 21 is_stmt 1
+ 294:src/Interrupt.cpp ****                     if(*get == 'K')
+ 337              		.loc 1 294 24 is_stmt 0
+ 338 0168 83C50700 		lbu	a1,0(a5)
+ 294:src/Interrupt.cpp ****                     if(*get == 'K')
+ 339              		.loc 1 294 21
+ 340 016c 9307B004 		li	a5,75
+ 341              	.LVL16:
+ 342 0170 6398F52C 		bne	a1,a5,.L29
+ 295:src/Interrupt.cpp ****                         PeriodicThread::flag = !PeriodicThread::flag;
+ 343              		.loc 1 295 25 is_stmt 1
+ 295:src/Interrupt.cpp ****                         PeriodicThread::flag = !PeriodicThread::flag;
+ 344              		.loc 1 295 48 is_stmt 0
+ 345 0174 17070000 		la	a4,_ZN14PeriodicThread4flagE
+ 345      03370700 
+ 346 017c 83470700 		lbu	a5,0(a4)
+ 347 0180 93C71700 		xori	a5,a5,1
+ 295:src/Interrupt.cpp ****                         PeriodicThread::flag = !PeriodicThread::flag;
+ 348              		.loc 1 295 46
+ 349 0184 2300F700 		sb	a5,0(a4)
+ 350              	.LVL17:
+ 351              	.L28:
+ 352              	.LBE27:
+ 353              	.LBE26:
+ 299:src/Interrupt.cpp ****                 if(*status & CONSOLE_TX_STATUS_BIT){
+ 354              		.loc 1 299 17 is_stmt 1
+ 355              	.LBB29:
+ 299:src/Interrupt.cpp ****                 if(*status & CONSOLE_TX_STATUS_BIT){
+ 356              		.loc 1 299 20 is_stmt 0
+ 357 0188 83470900 		lbu	a5,0(s2)
+ 299:src/Interrupt.cpp ****                 if(*status & CONSOLE_TX_STATUS_BIT){
+ 358              		.loc 1 299 17
+GAS LISTING /tmp/ccehoCYN.s 			page 15
+
+
+ 359 018c 93F70702 		andi	a5,a5,32
+ 360 0190 6384072C 		beqz	a5,.L30
+ 361              	.L31:
+ 362              	.LBB30:
+ 301:src/Interrupt.cpp ****                     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+ 363              		.loc 1 301 21 is_stmt 1
+ 301:src/Interrupt.cpp ****                     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+ 364              		.loc 1 301 60
+ 301:src/Interrupt.cpp ****                     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+ 365              		.loc 1 301 55 is_stmt 0
+ 366 0194 97070000 		la	a5,_ZN9PutBuffer9putBufferE
+ 366      83B70700 
+ 367 019c 03B50700 		ld	a0,0(a5)
+ 368 01a0 97000000 		call	_ZN9PutBuffer6getCntEv@plt
+ 368      E7800000 
+ 369              	.LVL18:
+ 301:src/Interrupt.cpp ****                     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+ 370              		.loc 1 301 60
+ 371 01a8 6358A02A 		blez	a0,.L30
+ 301:src/Interrupt.cpp ****                     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+ 372              		.loc 1 301 64 discriminator 2
+ 373 01ac 83470900 		lbu	a5,0(s2)
+ 301:src/Interrupt.cpp ****                     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+ 374              		.loc 1 301 60 discriminator 2
+ 375 01b0 93F70702 		andi	a5,a5,32
+ 376 01b4 6382072A 		beqz	a5,.L30
+ 377              	.LBB31:
+ 302:src/Interrupt.cpp ****                         uint8 *put = (uint8 *) CONSOLE_TX_DATA;
+ 378              		.loc 1 302 25 is_stmt 1
+ 302:src/Interrupt.cpp ****                         uint8 *put = (uint8 *) CONSOLE_TX_DATA;
+ 379              		.loc 1 302 32 is_stmt 0
+ 380 01b8 97070000 		la	a5,CONSOLE_TX_DATA
+ 380      83B70700 
+ 381 01c0 83B40700 		ld	s1,0(a5)
+ 382              	.LVL19:
+ 303:src/Interrupt.cpp ****                         char c = (PutBuffer::putBuffer->get());
+ 383              		.loc 1 303 25 is_stmt 1
+ 303:src/Interrupt.cpp ****                         char c = (PutBuffer::putBuffer->get());
+ 384              		.loc 1 303 60 is_stmt 0
+ 385 01c4 97070000 		la	a5,_ZN9PutBuffer9putBufferE
+ 385      83B70700 
+ 386 01cc 03B50700 		ld	a0,0(a5)
+ 387 01d0 97000000 		call	_ZN9PutBuffer3getEv@plt
+ 387      E7800000 
+ 388              	.LVL20:
+ 304:src/Interrupt.cpp ****                         if(c=='\0') break;
+ 389              		.loc 1 304 25 is_stmt 1
+ 390 01d8 63000528 		beqz	a0,.L30
+ 305:src/Interrupt.cpp ****                         else *put = c;
+ 391              		.loc 1 305 30
+ 305:src/Interrupt.cpp ****                         else *put = c;
+ 392              		.loc 1 305 35 is_stmt 0
+ 393 01dc 2380A400 		sb	a0,0(s1)
+ 394              	.LBE31:
+ 301:src/Interrupt.cpp ****                     while(PutBuffer::putBuffer->getCnt()>0 && (*status & CONSOLE_TX_STATUS_BIT)) {
+ 395              		.loc 1 301 21
+ 396 01e0 6FF05FFB 		j	.L31
+GAS LISTING /tmp/ccehoCYN.s 			page 16
+
+
+ 397              	.LVL21:
+ 398              	.L27:
+ 399              	.LBE30:
+ 400              	.LBE29:
+ 401              	.LBE25:
+ 402              	.LBE24:
+ 403              	.LBB34:
+ 404              	.LBB23:
+ 405              	.LBB7:
+  44:src/Interrupt.cpp ****                 case 0x01: {
+ 406              		.loc 1 44 17 is_stmt 1
+  44:src/Interrupt.cpp ****                 case 0x01: {
+ 407              		.loc 1 44 28
+ 408              	.LBB8:
+  46:src/Interrupt.cpp ****                     uint64 incPC;
+ 409              		.loc 1 46 21
+  47:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 410              		.loc 1 47 21
+  47:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 411              		.loc 1 47 62 is_stmt 0
+ 412              	#APP
+ 413              	# 47 "src/Interrupt.cpp" 1
+ 414              		csrr s2, sepc
+ 415              	# 0 "" 2
+ 416              	.LVL22:
+  48:src/Interrupt.cpp ****                     incPC += 4;
+ 417              		.loc 1 48 21 is_stmt 1
+  48:src/Interrupt.cpp ****                     incPC += 4;
+ 418              		.loc 1 48 27 is_stmt 0
+ 419              	#NO_APP
+ 420 01e8 13094900 		addi	s2,s2,4
+ 421              	.LVL23:
+  51:src/Interrupt.cpp ****                     void *ret = MemoryAllocator::getInstance().allocate(a1);
+ 422              		.loc 1 51 21 is_stmt 1
+  51:src/Interrupt.cpp ****                     void *ret = MemoryAllocator::getInstance().allocate(a1);
+ 423              		.loc 1 51 62 is_stmt 0
+ 424 01ec 97000000 		call	_ZN15MemoryAllocator11getInstanceEv@plt
+ 424      E7800000 
+ 425              	.LVL24:
+  51:src/Interrupt.cpp ****                     void *ret = MemoryAllocator::getInstance().allocate(a1);
+ 426              		.loc 1 51 72
+ 427 01f4 833584F9 		ld	a1,-104(s0)
+ 428 01f8 97000000 		call	_ZN15MemoryAllocator8allocateEm@plt
+ 428      E7800000 
+ 429              	.LVL25:
+  52:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 430              		.loc 1 52 21 is_stmt 1
+  52:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 431              		.loc 1 52 56 is_stmt 0
+ 432              	#APP
+ 433              	# 52 "src/Interrupt.cpp" 1
+  54:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 434              		mv a0, a0
+ 435              	# 0 "" 2
+ 436              		.loc 1 54 21 is_stmt 1
+  54:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 437              		.loc 1 54 62 is_stmt 0
+GAS LISTING /tmp/ccehoCYN.s 			page 17
+
+
+ 438              	# 54 "src/Interrupt.cpp" 1
+  55:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 439              		sd a0, 0x50(s1)
+ 440              	# 0 "" 2
+ 441              		.loc 1 55 21 is_stmt 1
+  55:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 442              		.loc 1 55 63 is_stmt 0
+ 443              	# 55 "src/Interrupt.cpp" 1
+  57:src/Interrupt.cpp ****                     break;
+ 444              		csrw sepc, s2
+ 445              	# 0 "" 2
+ 446              		.loc 1 57 21 is_stmt 1
+ 447              	#NO_APP
+ 448 020c 6F004031 		j	.L6
+ 449              	.LVL26:
+ 450              	.L26:
+ 451              	.LBE8:
+  59:src/Interrupt.cpp ****                 case 0x02: {
+ 452              		.loc 1 59 17
+  59:src/Interrupt.cpp ****                 case 0x02: {
+ 453              		.loc 1 59 28
+ 454              	.LBB9:
+  60:src/Interrupt.cpp ****                     uint64 incPC;
+ 455              		.loc 1 60 21
+  61:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 456              		.loc 1 61 21
+  61:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 457              		.loc 1 61 62 is_stmt 0
+ 458              	#APP
+ 459              	# 61 "src/Interrupt.cpp" 1
+ 460              		csrr s1, sepc
+ 461              	# 0 "" 2
+ 462              	.LVL27:
+  62:src/Interrupt.cpp ****                     incPC += 4;
+ 463              		.loc 1 62 21 is_stmt 1
+  62:src/Interrupt.cpp ****                     incPC += 4;
+ 464              		.loc 1 62 27 is_stmt 0
+ 465              	#NO_APP
+ 466 0214 93844400 		addi	s1,s1,4
+ 467              	.LVL28:
+  65:src/Interrupt.cpp ****                     MemoryAllocator::getInstance().deallocate(reinterpret_cast<void *>(a1));
+ 468              		.loc 1 65 21 is_stmt 1
+  65:src/Interrupt.cpp ****                     MemoryAllocator::getInstance().deallocate(reinterpret_cast<void *>(a1));
+ 469              		.loc 1 65 50 is_stmt 0
+ 470 0218 97000000 		call	_ZN15MemoryAllocator11getInstanceEv@plt
+ 470      E7800000 
+ 471              	.LVL29:
+  65:src/Interrupt.cpp ****                     MemoryAllocator::getInstance().deallocate(reinterpret_cast<void *>(a1));
+ 472              		.loc 1 65 62
+ 473 0220 833584F9 		ld	a1,-104(s0)
+ 474 0224 97000000 		call	_ZN15MemoryAllocator10deallocateEPv@plt
+ 474      E7800000 
+ 475              	.LVL30:
+  67:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 476              		.loc 1 67 21 is_stmt 1
+  67:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 477              		.loc 1 67 63 is_stmt 0
+GAS LISTING /tmp/ccehoCYN.s 			page 18
+
+
+ 478              	#APP
+ 479              	# 67 "src/Interrupt.cpp" 1
+  69:src/Interrupt.cpp ****                     break;
+ 480              		csrw sepc, s1
+ 481              	# 0 "" 2
+ 482              		.loc 1 69 21 is_stmt 1
+ 483              	#NO_APP
+ 484 0230 6F00002F 		j	.L6
+ 485              	.LVL31:
+ 486              	.L25:
+ 487              	.LBE9:
+  72:src/Interrupt.cpp ****                 case 0x11: {
+ 488              		.loc 1 72 17
+  72:src/Interrupt.cpp ****                 case 0x11: {
+ 489              		.loc 1 72 28
+ 490              	.LBB10:
+  73:src/Interrupt.cpp ****                     uint64 incPC;
+ 491              		.loc 1 73 21
+  74:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 492              		.loc 1 74 21
+  74:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 493              		.loc 1 74 62 is_stmt 0
+ 494              	#APP
+ 495              	# 74 "src/Interrupt.cpp" 1
+ 496              		csrr s2, sepc
+ 497              	# 0 "" 2
+ 498              	.LVL32:
+  75:src/Interrupt.cpp ****                     incPC += 4;
+ 499              		.loc 1 75 21 is_stmt 1
+  75:src/Interrupt.cpp ****                     incPC += 4;
+ 500              		.loc 1 75 27 is_stmt 0
+ 501              	#NO_APP
+ 502 0238 13094900 		addi	s2,s2,4
+ 503              	.LVL33:
+  78:src/Interrupt.cpp ****                     CThread **thr = reinterpret_cast<CThread **>(a1);
+ 504              		.loc 1 78 21 is_stmt 1
+  79:src/Interrupt.cpp ****                     CThread::Body b = reinterpret_cast<void (*)(void *)>(a2);
+ 505              		.loc 1 79 21
+  80:src/Interrupt.cpp ****                     void *arg = reinterpret_cast<void *>(a3);
+ 506              		.loc 1 80 21
+  81:src/Interrupt.cpp ****                     int ret = CThread::createThread(thr, b, arg);
+ 507              		.loc 1 81 21
+  81:src/Interrupt.cpp ****                     int ret = CThread::createThread(thr, b, arg);
+ 508              		.loc 1 81 52 is_stmt 0
+ 509 023c 033684FA 		ld	a2,-88(s0)
+ 510 0240 833504FA 		ld	a1,-96(s0)
+ 511 0244 033584F9 		ld	a0,-104(s0)
+ 512 0248 97000000 		call	_ZN7CThread12createThreadEPPS_PFvPvES2_@plt
+ 512      E7800000 
+ 513              	.LVL34:
+  83:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 514              		.loc 1 83 21 is_stmt 1
+  83:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 515              		.loc 1 83 56 is_stmt 0
+ 516              	#APP
+ 517              	# 83 "src/Interrupt.cpp" 1
+  84:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+GAS LISTING /tmp/ccehoCYN.s 			page 19
+
+
+ 518              		mv a0, a0
+ 519              	# 0 "" 2
+ 520              		.loc 1 84 21 is_stmt 1
+  84:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 521              		.loc 1 84 62 is_stmt 0
+ 522              	# 84 "src/Interrupt.cpp" 1
+  85:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 523              		sd a0, 0x50(s1)
+ 524              	# 0 "" 2
+ 525              		.loc 1 85 21 is_stmt 1
+  85:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 526              		.loc 1 85 63 is_stmt 0
+ 527              	# 85 "src/Interrupt.cpp" 1
+  87:src/Interrupt.cpp ****                     break;
+ 528              		csrw sepc, s2
+ 529              	# 0 "" 2
+ 530              		.loc 1 87 21 is_stmt 1
+ 531              	#NO_APP
+ 532 025c 6F00402C 		j	.L6
+ 533              	.LVL35:
+ 534              	.L24:
+ 535              	.LBE10:
+  89:src/Interrupt.cpp ****                 case 0x12: {
+ 536              		.loc 1 89 17
+  89:src/Interrupt.cpp ****                 case 0x12: {
+ 537              		.loc 1 89 28
+ 538              	.LBB11:
+  90:src/Interrupt.cpp ****                     uint64 incPC;
+ 539              		.loc 1 90 21
+  91:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 540              		.loc 1 91 21
+  91:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 541              		.loc 1 91 62 is_stmt 0
+ 542              	#APP
+ 543              	# 91 "src/Interrupt.cpp" 1
+ 544              		csrr s2, sepc
+ 545              	# 0 "" 2
+ 546              	.LVL36:
+  92:src/Interrupt.cpp ****                     incPC += 4;
+ 547              		.loc 1 92 21 is_stmt 1
+  92:src/Interrupt.cpp ****                     incPC += 4;
+ 548              		.loc 1 92 27 is_stmt 0
+ 549              	#NO_APP
+ 550 0264 13094900 		addi	s2,s2,4
+ 551              	.LVL37:
+  95:src/Interrupt.cpp ****                     CThread::running->status = CThread::FINISHED;
+ 552              		.loc 1 95 21 is_stmt 1
+  95:src/Interrupt.cpp ****                     CThread::running->status = CThread::FINISHED;
+ 553              		.loc 1 95 39 is_stmt 0
+ 554 0268 97070000 		la	a5,_ZN7CThread7runningE
+ 554      83B70700 
+ 555 0270 83B70700 		ld	a5,0(a5)
+  95:src/Interrupt.cpp ****                     CThread::running->status = CThread::FINISHED;
+ 556              		.loc 1 95 46
+ 557 0274 13071000 		li	a4,1
+ 558 0278 23A8E700 		sw	a4,16(a5)
+  96:src/Interrupt.cpp ****                     CThread::yield();
+GAS LISTING /tmp/ccehoCYN.s 			page 20
+
+
+ 559              		.loc 1 96 21 is_stmt 1
+  96:src/Interrupt.cpp ****                     CThread::yield();
+ 560              		.loc 1 96 35 is_stmt 0
+ 561 027c 97000000 		call	_ZN7CThread5yieldEv@plt
+ 561      E7800000 
+ 562              	.LVL38:
+  97:src/Interrupt.cpp ****                     int ret = 0;
+ 563              		.loc 1 97 21 is_stmt 1
+  98:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 564              		.loc 1 98 21
+  98:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 565              		.loc 1 98 56 is_stmt 0
+ 566 0284 93070000 		li	a5,0
+ 567              	#APP
+ 568              	# 98 "src/Interrupt.cpp" 1
+  99:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 569              		mv a0, a5
+ 570              	# 0 "" 2
+ 571              		.loc 1 99 21 is_stmt 1
+  99:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 572              		.loc 1 99 62 is_stmt 0
+ 573              	# 99 "src/Interrupt.cpp" 1
+ 100:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 574              		sd a0, 0x50(s1)
+ 575              	# 0 "" 2
+ 576              		.loc 1 100 21 is_stmt 1
+ 100:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 577              		.loc 1 100 63 is_stmt 0
+ 578              	# 100 "src/Interrupt.cpp" 1
+ 102:src/Interrupt.cpp ****                     break;
+ 579              		csrw sepc, s2
+ 580              	# 0 "" 2
+ 581              		.loc 1 102 21 is_stmt 1
+ 582              	#NO_APP
+ 583 0294 6F00C028 		j	.L6
+ 584              	.LVL39:
+ 585              	.L23:
+ 586              	.LBE11:
+ 104:src/Interrupt.cpp ****                 case 0x13: {
+ 587              		.loc 1 104 17
+ 104:src/Interrupt.cpp ****                 case 0x13: {
+ 588              		.loc 1 104 28
+ 589              	.LBB12:
+ 105:src/Interrupt.cpp ****                     uint64 incPC;
+ 590              		.loc 1 105 21
+ 106:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 591              		.loc 1 106 21
+ 106:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 592              		.loc 1 106 62 is_stmt 0
+ 593              	#APP
+ 594              	# 106 "src/Interrupt.cpp" 1
+ 595              		csrr s1, sepc
+ 596              	# 0 "" 2
+ 597              	.LVL40:
+ 107:src/Interrupt.cpp ****                     incPC += 4;
+ 598              		.loc 1 107 21 is_stmt 1
+ 107:src/Interrupt.cpp ****                     incPC += 4;
+GAS LISTING /tmp/ccehoCYN.s 			page 21
+
+
+ 599              		.loc 1 107 27 is_stmt 0
+ 600              	#NO_APP
+ 601 029c 93844400 		addi	s1,s1,4
+ 602              	.LVL41:
+ 110:src/Interrupt.cpp ****                     uint64 sstatus;
+ 603              		.loc 1 110 21 is_stmt 1
+ 111:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 604              		.loc 1 111 21
+ 111:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 605              		.loc 1 111 67 is_stmt 0
+ 606              	#APP
+ 607              	# 111 "src/Interrupt.cpp" 1
+ 608              		csrr s2, sstatus
+ 609              	# 0 "" 2
+ 610              	.LVL42:
+ 113:src/Interrupt.cpp ****                     CThread::yield();
+ 611              		.loc 1 113 21 is_stmt 1
+ 113:src/Interrupt.cpp ****                     CThread::yield();
+ 612              		.loc 1 113 35 is_stmt 0
+ 613              	#NO_APP
+ 614 02a4 97000000 		call	_ZN7CThread5yieldEv@plt
+ 614      E7800000 
+ 615              	.LVL43:
+ 114:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 616              		.loc 1 114 21 is_stmt 1
+ 114:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 617              		.loc 1 114 68 is_stmt 0
+ 618              	#APP
+ 619              	# 114 "src/Interrupt.cpp" 1
+ 116:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 620              		csrw  sstatus, s2
+ 621              	# 0 "" 2
+ 622              		.loc 1 116 21 is_stmt 1
+ 116:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 623              		.loc 1 116 63 is_stmt 0
+ 624              	# 116 "src/Interrupt.cpp" 1
+ 118:src/Interrupt.cpp ****                     break;
+ 625              		csrw sepc, s1
+ 626              	# 0 "" 2
+ 627              		.loc 1 118 21 is_stmt 1
+ 628              	#NO_APP
+ 629 02b4 6F00C026 		j	.L6
+ 630              	.LVL44:
+ 631              	.L22:
+ 632              	.LBE12:
+ 120:src/Interrupt.cpp ****                 case 0x14: {
+ 633              		.loc 1 120 17
+ 120:src/Interrupt.cpp ****                 case 0x14: {
+ 634              		.loc 1 120 28
+ 635              	.LBB13:
+ 121:src/Interrupt.cpp ****                     uint64 incPC;
+ 636              		.loc 1 121 21
+ 122:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 637              		.loc 1 122 21
+ 122:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 638              		.loc 1 122 62 is_stmt 0
+ 639              	#APP
+GAS LISTING /tmp/ccehoCYN.s 			page 22
+
+
+ 640              	# 122 "src/Interrupt.cpp" 1
+ 641              		csrr s1, sepc
+ 642              	# 0 "" 2
+ 643              	.LVL45:
+ 123:src/Interrupt.cpp ****                     incPC += 4;
+ 644              		.loc 1 123 21 is_stmt 1
+ 123:src/Interrupt.cpp ****                     incPC += 4;
+ 645              		.loc 1 123 27 is_stmt 0
+ 646              	#NO_APP
+ 647 02bc 93844400 		addi	s1,s1,4
+ 648              	.LVL46:
+ 126:src/Interrupt.cpp ****                     Scheduler::getInstance().put(reinterpret_cast<CThread *>(a1));
+ 649              		.loc 1 126 21 is_stmt 1
+ 126:src/Interrupt.cpp ****                     Scheduler::getInstance().put(reinterpret_cast<CThread *>(a1));
+ 650              		.loc 1 126 44 is_stmt 0
+ 651 02c0 97000000 		call	_ZN9Scheduler11getInstanceEv@plt
+ 651      E7800000 
+ 652              	.LVL47:
+ 126:src/Interrupt.cpp ****                     Scheduler::getInstance().put(reinterpret_cast<CThread *>(a1));
+ 653              		.loc 1 126 81
+ 654 02c8 033584F9 		ld	a0,-104(s0)
+ 655 02cc 97000000 		call	_ZN9Scheduler3putEP7CThread@plt
+ 655      E7800000 
+ 656              	.LVL48:
+ 128:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 657              		.loc 1 128 21 is_stmt 1
+ 128:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 658              		.loc 1 128 63 is_stmt 0
+ 659              	#APP
+ 660              	# 128 "src/Interrupt.cpp" 1
+ 130:src/Interrupt.cpp ****                     break;
+ 661              		csrw sepc, s1
+ 662              	# 0 "" 2
+ 663              		.loc 1 130 21 is_stmt 1
+ 664              	#NO_APP
+ 665 02d8 6F008024 		j	.L6
+ 666              	.LVL49:
+ 667              	.L21:
+ 668              	.LBE13:
+ 133:src/Interrupt.cpp ****                 case 0x21: {
+ 669              		.loc 1 133 17
+ 133:src/Interrupt.cpp ****                 case 0x21: {
+ 670              		.loc 1 133 28
+ 671              	.LBB14:
+ 134:src/Interrupt.cpp ****                     uint64 incPC;
+ 672              		.loc 1 134 21
+ 135:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 673              		.loc 1 135 21
+ 135:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 674              		.loc 1 135 62 is_stmt 0
+ 675              	#APP
+ 676              	# 135 "src/Interrupt.cpp" 1
+ 677              		csrr s2, sepc
+ 678              	# 0 "" 2
+ 679              	.LVL50:
+ 136:src/Interrupt.cpp ****                     incPC += 4;
+ 680              		.loc 1 136 21 is_stmt 1
+GAS LISTING /tmp/ccehoCYN.s 			page 23
+
+
+ 136:src/Interrupt.cpp ****                     incPC += 4;
+ 681              		.loc 1 136 27 is_stmt 0
+ 682              	#NO_APP
+ 683 02e0 13094900 		addi	s2,s2,4
+ 684              	.LVL51:
+ 140:src/Interrupt.cpp ****                     CSemaphore** handle = reinterpret_cast<CSemaphore **>(a1);
+ 685              		.loc 1 140 21 is_stmt 1
+ 141:src/Interrupt.cpp ****                     unsigned int init=a2;
+ 686              		.loc 1 141 21
+ 142:src/Interrupt.cpp ****                     int ret = CSemaphore::open(handle, init);
+ 687              		.loc 1 142 21
+ 142:src/Interrupt.cpp ****                     int ret = CSemaphore::open(handle, init);
+ 688              		.loc 1 142 47 is_stmt 0
+ 689 02e4 832504FA 		lw	a1,-96(s0)
+ 690 02e8 033584F9 		ld	a0,-104(s0)
+ 691 02ec 97000000 		call	_ZN10CSemaphore4openEPPS_j@plt
+ 691      E7800000 
+ 692              	.LVL52:
+ 143:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 693              		.loc 1 143 21 is_stmt 1
+ 143:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 694              		.loc 1 143 56 is_stmt 0
+ 695              	#APP
+ 696              	# 143 "src/Interrupt.cpp" 1
+ 144:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 697              		mv a0, a0
+ 698              	# 0 "" 2
+ 699              		.loc 1 144 21 is_stmt 1
+ 144:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 700              		.loc 1 144 62 is_stmt 0
+ 701              	# 144 "src/Interrupt.cpp" 1
+ 145:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 702              		sd a0, 0x50(s1)
+ 703              	# 0 "" 2
+ 704              		.loc 1 145 21 is_stmt 1
+ 145:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 705              		.loc 1 145 63 is_stmt 0
+ 706              	# 145 "src/Interrupt.cpp" 1
+ 147:src/Interrupt.cpp ****                     break;
+ 707              		csrw sepc, s2
+ 708              	# 0 "" 2
+ 709              		.loc 1 147 21 is_stmt 1
+ 710              	#NO_APP
+ 711 0300 6F000022 		j	.L6
+ 712              	.LVL53:
+ 713              	.L20:
+ 714              	.LBE14:
+ 149:src/Interrupt.cpp ****                 case 0x22: {
+ 715              		.loc 1 149 17
+ 149:src/Interrupt.cpp ****                 case 0x22: {
+ 716              		.loc 1 149 28
+ 717              	.LBB15:
+ 150:src/Interrupt.cpp ****                     uint64 incPC;
+ 718              		.loc 1 150 21
+ 151:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 719              		.loc 1 151 21
+ 151:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+GAS LISTING /tmp/ccehoCYN.s 			page 24
+
+
+ 720              		.loc 1 151 62 is_stmt 0
+ 721              	#APP
+ 722              	# 151 "src/Interrupt.cpp" 1
+ 723              		csrr s2, sepc
+ 724              	# 0 "" 2
+ 725              	.LVL54:
+ 152:src/Interrupt.cpp ****                     incPC += 4;
+ 726              		.loc 1 152 21 is_stmt 1
+ 152:src/Interrupt.cpp ****                     incPC += 4;
+ 727              		.loc 1 152 27 is_stmt 0
+ 728              	#NO_APP
+ 729 0308 13094900 		addi	s2,s2,4
+ 730              	.LVL55:
+ 155:src/Interrupt.cpp ****                     CSemaphore* handle = reinterpret_cast<CSemaphore *>(a1);
+ 731              		.loc 1 155 21 is_stmt 1
+ 156:src/Interrupt.cpp ****                     int ret = CSemaphore::close(handle);
+ 732              		.loc 1 156 21
+ 156:src/Interrupt.cpp ****                     int ret = CSemaphore::close(handle);
+ 733              		.loc 1 156 48 is_stmt 0
+ 734 030c 033584F9 		ld	a0,-104(s0)
+ 735 0310 97000000 		call	_ZN10CSemaphore5closeEPS_@plt
+ 735      E7800000 
+ 736              	.LVL56:
+ 157:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 737              		.loc 1 157 21 is_stmt 1
+ 157:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 738              		.loc 1 157 56 is_stmt 0
+ 739              	#APP
+ 740              	# 157 "src/Interrupt.cpp" 1
+ 158:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 741              		mv a0, a0
+ 742              	# 0 "" 2
+ 743              		.loc 1 158 21 is_stmt 1
+ 158:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 744              		.loc 1 158 62 is_stmt 0
+ 745              	# 158 "src/Interrupt.cpp" 1
+ 159:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 746              		sd a0, 0x50(s1)
+ 747              	# 0 "" 2
+ 748              		.loc 1 159 21 is_stmt 1
+ 159:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 749              		.loc 1 159 63 is_stmt 0
+ 750              	# 159 "src/Interrupt.cpp" 1
+ 161:src/Interrupt.cpp ****                     break;
+ 751              		csrw sepc, s2
+ 752              	# 0 "" 2
+ 753              		.loc 1 161 21 is_stmt 1
+ 754              	#NO_APP
+ 755 0324 6F00C01F 		j	.L6
+ 756              	.LVL57:
+ 757              	.L19:
+ 758              	.LBE15:
+ 163:src/Interrupt.cpp ****                 case 0x23: {
+ 759              		.loc 1 163 17
+ 163:src/Interrupt.cpp ****                 case 0x23: {
+ 760              		.loc 1 163 28
+ 761              	.LBB16:
+GAS LISTING /tmp/ccehoCYN.s 			page 25
+
+
+ 165:src/Interrupt.cpp ****                     uint64 incPC;
+ 762              		.loc 1 165 21
+ 166:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 763              		.loc 1 166 21
+ 166:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 764              		.loc 1 166 62 is_stmt 0
+ 765              	#APP
+ 766              	# 166 "src/Interrupt.cpp" 1
+ 767              		csrr s2, sepc
+ 768              	# 0 "" 2
+ 769              	.LVL58:
+ 167:src/Interrupt.cpp ****                     incPC += 4;
+ 770              		.loc 1 167 21 is_stmt 1
+ 167:src/Interrupt.cpp ****                     incPC += 4;
+ 771              		.loc 1 167 27 is_stmt 0
+ 772              	#NO_APP
+ 773 032c 13094900 		addi	s2,s2,4
+ 774              	.LVL59:
+ 170:src/Interrupt.cpp ****                     uint64 sstatus;
+ 775              		.loc 1 170 21 is_stmt 1
+ 171:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 776              		.loc 1 171 21
+ 171:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 777              		.loc 1 171 67 is_stmt 0
+ 778              	#APP
+ 779              	# 171 "src/Interrupt.cpp" 1
+ 780              		csrr s3, sstatus
+ 781              	# 0 "" 2
+ 782              	.LVL60:
+ 173:src/Interrupt.cpp ****                     CSemaphore* handle = reinterpret_cast<CSemaphore *>(a1);
+ 783              		.loc 1 173 21 is_stmt 1
+ 174:src/Interrupt.cpp ****                     int ret = handle->wait();
+ 784              		.loc 1 174 21
+ 174:src/Interrupt.cpp ****                     int ret = handle->wait();
+ 785              		.loc 1 174 43 is_stmt 0
+ 786              	#NO_APP
+ 787 0334 033584F9 		ld	a0,-104(s0)
+ 788 0338 97000000 		call	_ZN10CSemaphore4waitEv@plt
+ 788      E7800000 
+ 789              	.LVL61:
+ 175:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 790              		.loc 1 175 21 is_stmt 1
+ 175:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 791              		.loc 1 175 56 is_stmt 0
+ 792              	#APP
+ 793              	# 175 "src/Interrupt.cpp" 1
+ 176:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 794              		mv a0, a0
+ 795              	# 0 "" 2
+ 796              		.loc 1 176 21 is_stmt 1
+ 176:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 797              		.loc 1 176 62 is_stmt 0
+ 798              	# 176 "src/Interrupt.cpp" 1
+ 178:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 799              		sd a0, 0x50(s1)
+ 800              	# 0 "" 2
+ 801              		.loc 1 178 21 is_stmt 1
+GAS LISTING /tmp/ccehoCYN.s 			page 26
+
+
+ 178:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 802              		.loc 1 178 68 is_stmt 0
+ 803              	# 178 "src/Interrupt.cpp" 1
+ 179:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 804              		csrw  sstatus, s3
+ 805              	# 0 "" 2
+ 806              		.loc 1 179 21 is_stmt 1
+ 179:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 807              		.loc 1 179 63 is_stmt 0
+ 808              	# 179 "src/Interrupt.cpp" 1
+ 182:src/Interrupt.cpp ****                     break;
+ 809              		csrw sepc, s2
+ 810              	# 0 "" 2
+ 811              		.loc 1 182 21 is_stmt 1
+ 812              	#NO_APP
+ 813 0350 6F00001D 		j	.L6
+ 814              	.LVL62:
+ 815              	.L18:
+ 816              	.LBE16:
+ 184:src/Interrupt.cpp ****                 case 0x24: {
+ 817              		.loc 1 184 17
+ 184:src/Interrupt.cpp ****                 case 0x24: {
+ 818              		.loc 1 184 28
+ 819              	.LBB17:
+ 185:src/Interrupt.cpp ****                     uint64 incPC;
+ 820              		.loc 1 185 21
+ 186:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 821              		.loc 1 186 21
+ 186:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 822              		.loc 1 186 62 is_stmt 0
+ 823              	#APP
+ 824              	# 186 "src/Interrupt.cpp" 1
+ 825              		csrr s2, sepc
+ 826              	# 0 "" 2
+ 827              	.LVL63:
+ 187:src/Interrupt.cpp ****                     incPC += 4;
+ 828              		.loc 1 187 21 is_stmt 1
+ 187:src/Interrupt.cpp ****                     incPC += 4;
+ 829              		.loc 1 187 27 is_stmt 0
+ 830              	#NO_APP
+ 831 0358 13094900 		addi	s2,s2,4
+ 832              	.LVL64:
+ 191:src/Interrupt.cpp ****                     CSemaphore* handle = reinterpret_cast<CSemaphore *>(a1);
+ 833              		.loc 1 191 21 is_stmt 1
+ 192:src/Interrupt.cpp ****                     int ret = handle->signal();
+ 834              		.loc 1 192 21
+ 192:src/Interrupt.cpp ****                     int ret = handle->signal();
+ 835              		.loc 1 192 45 is_stmt 0
+ 836 035c 033584F9 		ld	a0,-104(s0)
+ 837 0360 97000000 		call	_ZN10CSemaphore6signalEv@plt
+ 837      E7800000 
+ 838              	.LVL65:
+ 193:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 839              		.loc 1 193 21 is_stmt 1
+ 193:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 840              		.loc 1 193 56 is_stmt 0
+ 841              	#APP
+GAS LISTING /tmp/ccehoCYN.s 			page 27
+
+
+ 842              	# 193 "src/Interrupt.cpp" 1
+ 194:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 843              		mv a0, a0
+ 844              	# 0 "" 2
+ 845              		.loc 1 194 21 is_stmt 1
+ 194:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 846              		.loc 1 194 62 is_stmt 0
+ 847              	# 194 "src/Interrupt.cpp" 1
+ 195:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 848              		sd a0, 0x50(s1)
+ 849              	# 0 "" 2
+ 850              		.loc 1 195 21 is_stmt 1
+ 195:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 851              		.loc 1 195 63 is_stmt 0
+ 852              	# 195 "src/Interrupt.cpp" 1
+ 197:src/Interrupt.cpp ****                     break;
+ 853              		csrw sepc, s2
+ 854              	# 0 "" 2
+ 855              		.loc 1 197 21 is_stmt 1
+ 856              	#NO_APP
+ 857 0374 6F00C01A 		j	.L6
+ 858              	.LVL66:
+ 859              	.L17:
+ 860              	.LBE17:
+ 200:src/Interrupt.cpp ****                 case 0x31: {
+ 861              		.loc 1 200 17
+ 200:src/Interrupt.cpp ****                 case 0x31: {
+ 862              		.loc 1 200 28
+ 863              	.LBB18:
+ 202:src/Interrupt.cpp ****                     uint64 incPC;
+ 864              		.loc 1 202 21
+ 203:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 865              		.loc 1 203 21
+ 203:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 866              		.loc 1 203 62 is_stmt 0
+ 867              	#APP
+ 868              	# 203 "src/Interrupt.cpp" 1
+ 869              		csrr s1, sepc
+ 870              	# 0 "" 2
+ 871              	.LVL67:
+ 204:src/Interrupt.cpp ****                     incPC += 4;
+ 872              		.loc 1 204 21 is_stmt 1
+ 204:src/Interrupt.cpp ****                     incPC += 4;
+ 873              		.loc 1 204 27 is_stmt 0
+ 874              	#NO_APP
+ 875 037c 93844400 		addi	s1,s1,4
+ 876              	.LVL68:
+ 207:src/Interrupt.cpp ****                     uint64 sstatus;
+ 877              		.loc 1 207 21 is_stmt 1
+ 208:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 878              		.loc 1 208 21
+ 208:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 879              		.loc 1 208 67 is_stmt 0
+ 880              	#APP
+ 881              	# 208 "src/Interrupt.cpp" 1
+ 882              		csrr s2, sstatus
+ 883              	# 0 "" 2
+GAS LISTING /tmp/ccehoCYN.s 			page 28
+
+
+ 884              	.LVL69:
+ 210:src/Interrupt.cpp ****                     time_t time = a1;
+ 885              		.loc 1 210 21 is_stmt 1
+ 211:src/Interrupt.cpp ****                     Sleep::sleep(time);
+ 886              		.loc 1 211 21
+ 211:src/Interrupt.cpp ****                     Sleep::sleep(time);
+ 887              		.loc 1 211 33 is_stmt 0
+ 888              	#NO_APP
+ 889 0384 033584F9 		ld	a0,-104(s0)
+ 890 0388 97000000 		call	_ZN5Sleep5sleepEm@plt
+ 890      E7800000 
+ 891              	.LVL70:
+ 213:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 892              		.loc 1 213 21 is_stmt 1
+ 213:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 893              		.loc 1 213 68 is_stmt 0
+ 894              	#APP
+ 895              	# 213 "src/Interrupt.cpp" 1
+ 214:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 896              		csrw  sstatus, s2
+ 897              	# 0 "" 2
+ 898              		.loc 1 214 21 is_stmt 1
+ 214:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 899              		.loc 1 214 63 is_stmt 0
+ 900              	# 214 "src/Interrupt.cpp" 1
+ 216:src/Interrupt.cpp ****                     break;
+ 901              		csrw sepc, s1
+ 902              	# 0 "" 2
+ 903              		.loc 1 216 21 is_stmt 1
+ 904              	#NO_APP
+ 905 0398 6F008018 		j	.L6
+ 906              	.LVL71:
+ 907              	.L16:
+ 908              	.LBE18:
+ 219:src/Interrupt.cpp ****                 case 0x41: {
+ 909              		.loc 1 219 17
+ 219:src/Interrupt.cpp ****                 case 0x41: {
+ 910              		.loc 1 219 28
+ 911              	.LBB19:
+ 221:src/Interrupt.cpp ****                     uint64 incPC;
+ 912              		.loc 1 221 21
+ 222:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 913              		.loc 1 222 21
+ 222:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 914              		.loc 1 222 62 is_stmt 0
+ 915              	#APP
+ 916              	# 222 "src/Interrupt.cpp" 1
+ 917              		csrr s2, sepc
+ 918              	# 0 "" 2
+ 919              	.LVL72:
+ 223:src/Interrupt.cpp ****                     incPC += 4;
+ 920              		.loc 1 223 21 is_stmt 1
+ 223:src/Interrupt.cpp ****                     incPC += 4;
+ 921              		.loc 1 223 27 is_stmt 0
+ 922              	#NO_APP
+ 923 03a0 13094900 		addi	s2,s2,4
+ 924              	.LVL73:
+GAS LISTING /tmp/ccehoCYN.s 			page 29
+
+
+ 225:src/Interrupt.cpp ****                     uint64 sstatus;
+ 925              		.loc 1 225 21 is_stmt 1
+ 226:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 926              		.loc 1 226 21
+ 226:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 927              		.loc 1 226 67 is_stmt 0
+ 928              	#APP
+ 929              	# 226 "src/Interrupt.cpp" 1
+ 930              		csrr s3, sstatus
+ 931              	# 0 "" 2
+ 932              	.LVL74:
+ 228:src/Interrupt.cpp ****                     char ret = GetBuffer::getBuffer->get();
+ 933              		.loc 1 228 21 is_stmt 1
+ 228:src/Interrupt.cpp ****                     char ret = GetBuffer::getBuffer->get();
+ 934              		.loc 1 228 57 is_stmt 0
+ 935              	#NO_APP
+ 936 03a8 97070000 		la	a5,_ZN9GetBuffer9getBufferE
+ 936      83B70700 
+ 937 03b0 03B50700 		ld	a0,0(a5)
+ 938 03b4 97000000 		call	_ZN9GetBuffer3getEv@plt
+ 938      E7800000 
+ 939              	.LVL75:
+ 229:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 940              		.loc 1 229 21 is_stmt 1
+ 229:src/Interrupt.cpp ****                     asm volatile("mv a0, %0"::"r"(ret));
+ 941              		.loc 1 229 56 is_stmt 0
+ 942              	#APP
+ 943              	# 229 "src/Interrupt.cpp" 1
+ 230:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 944              		mv a0, a0
+ 945              	# 0 "" 2
+ 946              		.loc 1 230 21 is_stmt 1
+ 230:src/Interrupt.cpp ****                     asm volatile("sd a0, 0x50(%0)"::"r"(tmp));
+ 947              		.loc 1 230 62 is_stmt 0
+ 948              	# 230 "src/Interrupt.cpp" 1
+ 232:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 949              		sd a0, 0x50(s1)
+ 950              	# 0 "" 2
+ 951              		.loc 1 232 21 is_stmt 1
+ 232:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 952              		.loc 1 232 68 is_stmt 0
+ 953              	# 232 "src/Interrupt.cpp" 1
+ 233:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 954              		csrw  sstatus, s3
+ 955              	# 0 "" 2
+ 956              		.loc 1 233 21 is_stmt 1
+ 233:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 957              		.loc 1 233 63 is_stmt 0
+ 958              	# 233 "src/Interrupt.cpp" 1
+ 235:src/Interrupt.cpp ****                     break;
+ 959              		csrw sepc, s2
+ 960              	# 0 "" 2
+ 961              		.loc 1 235 21 is_stmt 1
+ 962              	#NO_APP
+ 963 03cc 6F004015 		j	.L6
+ 964              	.LVL76:
+ 965              	.L15:
+GAS LISTING /tmp/ccehoCYN.s 			page 30
+
+
+ 966              	.LBE19:
+ 237:src/Interrupt.cpp ****                 case 0x42: {
+ 967              		.loc 1 237 17
+ 237:src/Interrupt.cpp ****                 case 0x42: {
+ 968              		.loc 1 237 28
+ 969              	.LBB20:
+ 239:src/Interrupt.cpp ****                     uint64 incPC;
+ 970              		.loc 1 239 21
+ 240:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 971              		.loc 1 240 21
+ 240:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 972              		.loc 1 240 62 is_stmt 0
+ 973              	#APP
+ 974              	# 240 "src/Interrupt.cpp" 1
+ 975              		csrr s1, sepc
+ 976              	# 0 "" 2
+ 977              	.LVL77:
+ 241:src/Interrupt.cpp ****                     incPC += 4;
+ 978              		.loc 1 241 21 is_stmt 1
+ 241:src/Interrupt.cpp ****                     incPC += 4;
+ 979              		.loc 1 241 27 is_stmt 0
+ 980              	#NO_APP
+ 981 03d4 93844400 		addi	s1,s1,4
+ 982              	.LVL78:
+ 243:src/Interrupt.cpp ****                     uint64 sstatus;
+ 983              		.loc 1 243 21 is_stmt 1
+ 244:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 984              		.loc 1 244 21
+ 244:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 985              		.loc 1 244 67 is_stmt 0
+ 986              	#APP
+ 987              	# 244 "src/Interrupt.cpp" 1
+ 988              		csrr s2, sstatus
+ 989              	# 0 "" 2
+ 990              	.LVL79:
+ 246:src/Interrupt.cpp ****                     PutBuffer::putBuffer->put(a1);
+ 991              		.loc 1 246 21 is_stmt 1
+ 246:src/Interrupt.cpp ****                     PutBuffer::putBuffer->put(a1);
+ 992              		.loc 1 246 46 is_stmt 0
+ 993              	#NO_APP
+ 994 03dc 834584F9 		lbu	a1,-104(s0)
+ 995 03e0 97070000 		la	a5,_ZN9PutBuffer9putBufferE
+ 995      83B70700 
+ 996 03e8 03B50700 		ld	a0,0(a5)
+ 997 03ec 97000000 		call	_ZN9PutBuffer3putEc@plt
+ 997      E7800000 
+ 998              	.LVL80:
+ 247:src/Interrupt.cpp ****                     flush();
+ 999              		.loc 1 247 21 is_stmt 1
+ 247:src/Interrupt.cpp ****                     flush();
+ 1000              		.loc 1 247 26 is_stmt 0
+ 1001 03f4 97000000 		call	_Z5flushv
+ 1001      E7800000 
+ 1002              	.LVL81:
+ 248:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+ 1003              		.loc 1 248 21 is_stmt 1
+ 248:src/Interrupt.cpp ****                     asm volatile("csrw  sstatus, %0"::"r"(sstatus));
+GAS LISTING /tmp/ccehoCYN.s 			page 31
+
+
+ 1004              		.loc 1 248 68 is_stmt 0
+ 1005              	#APP
+ 1006              	# 248 "src/Interrupt.cpp" 1
+ 249:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 1007              		csrw  sstatus, s2
+ 1008              	# 0 "" 2
+ 1009              		.loc 1 249 21 is_stmt 1
+ 249:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0": :"r"(incPC));
+ 1010              		.loc 1 249 63 is_stmt 0
+ 1011              	# 249 "src/Interrupt.cpp" 1
+ 251:src/Interrupt.cpp ****                     break;
+ 1012              		csrw sepc, s1
+ 1013              	# 0 "" 2
+ 1014              		.loc 1 251 21 is_stmt 1
+ 1015              	#NO_APP
+ 1016 0404 6F00C011 		j	.L6
+ 1017              	.LVL82:
+ 1018              	.L14:
+ 1019              	.LBE20:
+ 254:src/Interrupt.cpp ****                 case 0x51:{
+ 1020              		.loc 1 254 17
+ 254:src/Interrupt.cpp ****                 case 0x51:{
+ 1021              		.loc 1 254 27
+ 1022              	.LBB21:
+ 256:src/Interrupt.cpp ****                     uint64 incPC;
+ 1023              		.loc 1 256 21
+ 257:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 1024              		.loc 1 257 21
+ 257:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 1025              		.loc 1 257 62 is_stmt 0
+ 1026              	#APP
+ 1027              	# 257 "src/Interrupt.cpp" 1
+ 1028              		csrr a5, sepc
+ 1029              	# 0 "" 2
+ 1030              	.LVL83:
+ 258:src/Interrupt.cpp ****                     uint64 temp;
+ 1031              		.loc 1 258 21 is_stmt 1
+ 259:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus" : "=r" (temp));
+ 1032              		.loc 1 259 21
+ 259:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus" : "=r" (temp));
+ 1033              		.loc 1 259 67 is_stmt 0
+ 1034              	# 259 "src/Interrupt.cpp" 1
+ 1035              		csrr a4, sstatus
+ 1036              	# 0 "" 2
+ 1037              	.LVL84:
+ 260:src/Interrupt.cpp ****                     temp &= ~0x100;
+ 1038              		.loc 1 260 21 is_stmt 1
+ 260:src/Interrupt.cpp ****                     temp &= ~0x100;
+ 1039              		.loc 1 260 26 is_stmt 0
+ 1040              	#NO_APP
+ 1041 0410 1377F7EF 		andi	a4,a4,-257
+ 1042              	.LVL85:
+ 261:src/Interrupt.cpp ****                     asm volatile("csrw sstatus, %0" : : "r" (temp));
+ 1043              		.loc 1 261 21 is_stmt 1
+ 261:src/Interrupt.cpp ****                     asm volatile("csrw sstatus, %0" : : "r" (temp));
+ 1044              		.loc 1 261 68 is_stmt 0
+ 1045              	#APP
+GAS LISTING /tmp/ccehoCYN.s 			page 32
+
+
+ 1046              	# 261 "src/Interrupt.cpp" 1
+ 262:src/Interrupt.cpp ****                     incPC+=4;
+ 1047              		csrw sstatus, a4
+ 1048              	# 0 "" 2
+ 1049              		.loc 1 262 21 is_stmt 1
+ 262:src/Interrupt.cpp ****                     incPC+=4;
+ 1050              		.loc 1 262 26 is_stmt 0
+ 1051              	#NO_APP
+ 1052 0418 93874700 		addi	a5,a5,4
+ 1053              	.LVL86:
+ 263:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0" : : "r" (incPC));
+ 1054              		.loc 1 263 21 is_stmt 1
+ 263:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0" : : "r" (incPC));
+ 1055              		.loc 1 263 66 is_stmt 0
+ 1056              	#APP
+ 1057              	# 263 "src/Interrupt.cpp" 1
+ 265:src/Interrupt.cpp ****                     break;
+ 1058              		csrw sepc, a5
+ 1059              	# 0 "" 2
+ 1060              		.loc 1 265 21 is_stmt 1
+ 1061              	#NO_APP
+ 1062 0420 6F000010 		j	.L6
+ 1063              	.LVL87:
+ 1064              	.L12:
+ 1065              	.LBE21:
+ 267:src/Interrupt.cpp ****                 case 0x52:{
+ 1066              		.loc 1 267 17
+ 267:src/Interrupt.cpp ****                 case 0x52:{
+ 1067              		.loc 1 267 27
+ 1068              	.LBB22:
+ 268:src/Interrupt.cpp ****                     uint64 incPC;
+ 1069              		.loc 1 268 21
+ 269:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 1070              		.loc 1 269 21
+ 269:src/Interrupt.cpp ****                     asm volatile("csrr %0, sepc":"=r"(incPC));
+ 1071              		.loc 1 269 62 is_stmt 0
+ 1072              	#APP
+ 1073              	# 269 "src/Interrupt.cpp" 1
+ 1074              		csrr a5, sepc
+ 1075              	# 0 "" 2
+ 1076              	.LVL88:
+ 270:src/Interrupt.cpp ****                     uint64 temp;
+ 1077              		.loc 1 270 21 is_stmt 1
+ 271:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus" : "=r" (temp));
+ 1078              		.loc 1 271 21
+ 271:src/Interrupt.cpp ****                     asm volatile("csrr %0, sstatus" : "=r" (temp));
+ 1079              		.loc 1 271 67 is_stmt 0
+ 1080              	# 271 "src/Interrupt.cpp" 1
+ 1081              		csrr a4, sstatus
+ 1082              	# 0 "" 2
+ 1083              	.LVL89:
+ 272:src/Interrupt.cpp ****                     temp |= 0x100;
+ 1084              		.loc 1 272 21 is_stmt 1
+ 272:src/Interrupt.cpp ****                     temp |= 0x100;
+ 1085              		.loc 1 272 26 is_stmt 0
+ 1086              	#NO_APP
+ 1087 042c 13670710 		ori	a4,a4,256
+GAS LISTING /tmp/ccehoCYN.s 			page 33
+
+
+ 1088              	.LVL90:
+ 273:src/Interrupt.cpp ****                     asm volatile("csrw sstatus, %0" : : "r" (temp));
+ 1089              		.loc 1 273 21 is_stmt 1
+ 273:src/Interrupt.cpp ****                     asm volatile("csrw sstatus, %0" : : "r" (temp));
+ 1090              		.loc 1 273 68 is_stmt 0
+ 1091              	#APP
+ 1092              	# 273 "src/Interrupt.cpp" 1
+ 274:src/Interrupt.cpp ****                     incPC+=4;
+ 1093              		csrw sstatus, a4
+ 1094              	# 0 "" 2
+ 1095              		.loc 1 274 21 is_stmt 1
+ 274:src/Interrupt.cpp ****                     incPC+=4;
+ 1096              		.loc 1 274 26 is_stmt 0
+ 1097              	#NO_APP
+ 1098 0434 93874700 		addi	a5,a5,4
+ 1099              	.LVL91:
+ 275:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0" : : "r" (incPC));
+ 1100              		.loc 1 275 21 is_stmt 1
+ 275:src/Interrupt.cpp ****                     asm volatile("csrw sepc, %0" : : "r" (incPC));
+ 1101              		.loc 1 275 66 is_stmt 0
+ 1102              	#APP
+ 1103              	# 275 "src/Interrupt.cpp" 1
+ 277:src/Interrupt.cpp ****                     break;
+ 1104              		csrw sepc, a5
+ 1105              	# 0 "" 2
+ 1106              		.loc 1 277 21 is_stmt 1
+ 1107              	#NO_APP
+ 1108 043c 6F00400E 		j	.L6
+ 1109              	.LVL92:
+ 1110              	.L29:
+ 1111              	.LBE22:
+ 1112              	.LBE7:
+ 1113              	.LBE23:
+ 1114              	.LBE34:
+ 1115              	.LBB35:
+ 1116              	.LBB33:
+ 1117              	.LBB32:
+ 1118              	.LBB28:
+ 297:src/Interrupt.cpp ****                         GetBuffer::getBuffer->put(*get);
+ 1119              		.loc 1 297 25
+ 297:src/Interrupt.cpp ****                         GetBuffer::getBuffer->put(*get);
+ 1120              		.loc 1 297 50 is_stmt 0
+ 1121 0440 97070000 		la	a5,_ZN9GetBuffer9getBufferE
+ 1121      83B70700 
+ 1122 0448 03B50700 		ld	a0,0(a5)
+ 1123 044c 97000000 		call	_ZN9GetBuffer3putEc@plt
+ 1123      E7800000 
+ 1124              	.LVL93:
+ 1125 0454 6FF05FD3 		j	.L28
+ 1126              	.LVL94:
+ 1127              	.L30:
+ 1128              	.LBE28:
+ 1129              	.LBE32:
+ 308:src/Interrupt.cpp ****                 plic_complete(CONSOLE_IRQ);
+ 1130              		.loc 1 308 17 is_stmt 1
+ 308:src/Interrupt.cpp ****                 plic_complete(CONSOLE_IRQ);
+ 1131              		.loc 1 308 30 is_stmt 0
+GAS LISTING /tmp/ccehoCYN.s 			page 34
+
+
+ 1132 0458 1305A000 		li	a0,10
+ 1133 045c 97000000 		call	plic_complete@plt
+ 1133      E7800000 
+ 1134              	.LVL95:
+ 1135 0464 6F00C00B 		j	.L6
+ 1136              	.LVL96:
+ 1137              	.L7:
+ 1138              	.LBE33:
+ 1139              	.LBE35:
+ 1140              	.LBE40:
+ 313:src/Interrupt.cpp ****         case 0x8000000000000001UL: {
+ 1141              		.loc 1 313 9 is_stmt 1
+ 313:src/Interrupt.cpp ****         case 0x8000000000000001UL: {
+ 1142              		.loc 1 313 36
+ 1143              	.LBB41:
+ 1144              	.LBB36:
+ 316:src/Interrupt.cpp ****             CThread* cur = Sleep::headSleep;
+ 1145              		.loc 1 316 13
+ 316:src/Interrupt.cpp ****             CThread* cur = Sleep::headSleep;
+ 1146              		.loc 1 316 22 is_stmt 0
+ 1147 0468 97070000 		la	a5,_ZN5Sleep9headSleepE
+ 1147      83B70700 
+ 1148              	.LVL97:
+ 1149 0470 83B40700 		ld	s1,0(a5)
+ 1150              	.LVL98:
+ 317:src/Interrupt.cpp ****             for(int i = 0; i<Sleep::count; i++, cur = cur->next){
+ 1151              		.loc 1 317 13 is_stmt 1
+ 1152              	.LBB37:
+ 317:src/Interrupt.cpp ****             for(int i = 0; i<Sleep::count; i++, cur = cur->next){
+ 1153              		.loc 1 317 21 is_stmt 0
+ 1154 0474 13090000 		li	s2,0
+ 1155 0478 6F00C000 		j	.L34
+ 1156              	.LVL99:
+ 1157              	.L33:
+ 317:src/Interrupt.cpp ****             for(int i = 0; i<Sleep::count; i++, cur = cur->next){
+ 1158              		.loc 1 317 13 is_stmt 1 discriminator 2
+ 1159 047c 1B091900 		addiw	s2,s2,1
+ 1160              	.LVL100:
+ 317:src/Interrupt.cpp ****             for(int i = 0; i<Sleep::count; i++, cur = cur->next){
+ 1161              		.loc 1 317 53 is_stmt 0 discriminator 2
+ 1162 0480 83B48400 		ld	s1,8(s1)
+ 1163              	.LVL101:
+ 1164              	.L34:
+ 317:src/Interrupt.cpp ****             for(int i = 0; i<Sleep::count; i++, cur = cur->next){
+ 1165              		.loc 1 317 29 is_stmt 1 discriminator 1
+ 1166 0484 97070000 		la	a5,_ZN5Sleep5countE
+ 1166      83B70700 
+ 1167 048c 83A70700 		lw	a5,0(a5)
+ 1168 0490 635EF904 		ble	a5,s2,.L32
+ 318:src/Interrupt.cpp ****                if(cur== nullptr)break;
+ 1169              		.loc 1 318 16
+ 1170 0494 638C0404 		beqz	s1,.L32
+ 319:src/Interrupt.cpp ****                 if(--(cur->sleepTime)<=0){
+ 1171              		.loc 1 319 17
+ 319:src/Interrupt.cpp ****                 if(--(cur->sleepTime)<=0){
+ 1172              		.loc 1 319 28 is_stmt 0
+ 1173 0498 83A70400 		lw	a5,0(s1)
+GAS LISTING /tmp/ccehoCYN.s 			page 35
+
+
+ 319:src/Interrupt.cpp ****                 if(--(cur->sleepTime)<=0){
+ 1174              		.loc 1 319 20
+ 1175 049c 9B87F7FF 		addiw	a5,a5,-1
+ 1176 04a0 1B870700 		sext.w	a4,a5
+ 319:src/Interrupt.cpp ****                 if(--(cur->sleepTime)<=0){
+ 1177              		.loc 1 319 38
+ 1178 04a4 23A0F400 		sw	a5,0(s1)
+ 319:src/Interrupt.cpp ****                 if(--(cur->sleepTime)<=0){
+ 1179              		.loc 1 319 17
+ 1180 04a8 E34AE0FC 		bgtz	a4,.L33
+ 320:src/Interrupt.cpp ****                     Sleep::count--;
+ 1181              		.loc 1 320 21 is_stmt 1
+ 320:src/Interrupt.cpp ****                     Sleep::count--;
+ 1182              		.loc 1 320 33 is_stmt 0
+ 1183 04ac 17070000 		la	a4,_ZN5Sleep5countE
+ 1183      03370700 
+ 1184 04b4 83270700 		lw	a5,0(a4)
+ 1185 04b8 9B87F7FF 		addiw	a5,a5,-1
+ 1186 04bc 2320F700 		sw	a5,0(a4)
+ 321:src/Interrupt.cpp ****                     Sleep::headSleep = Sleep::headSleep->next;
+ 1187              		.loc 1 321 21 is_stmt 1
+ 321:src/Interrupt.cpp ****                     Sleep::headSleep = Sleep::headSleep->next;
+ 1188              		.loc 1 321 58 is_stmt 0
+ 1189 04c0 97070000 		la	a5,_ZN5Sleep9headSleepE
+ 1189      83B70700 
+ 1190 04c8 03B70700 		ld	a4,0(a5)
+ 1191 04cc 03378700 		ld	a4,8(a4)
+ 321:src/Interrupt.cpp ****                     Sleep::headSleep = Sleep::headSleep->next;
+ 1192              		.loc 1 321 38
+ 1193 04d0 23B0E700 		sd	a4,0(a5)
+ 322:src/Interrupt.cpp ****                     Scheduler::getInstance().put(cur);
+ 1194              		.loc 1 322 21 is_stmt 1
+ 322:src/Interrupt.cpp ****                     Scheduler::getInstance().put(cur);
+ 1195              		.loc 1 322 44 is_stmt 0
+ 1196 04d4 97000000 		call	_ZN9Scheduler11getInstanceEv@plt
+ 1196      E7800000 
+ 1197              	.LVL102:
+ 322:src/Interrupt.cpp ****                     Scheduler::getInstance().put(cur);
+ 1198              		.loc 1 322 53
+ 1199 04dc 13850400 		mv	a0,s1
+ 1200 04e0 97000000 		call	_ZN9Scheduler3putEP7CThread@plt
+ 1200      E7800000 
+ 1201              	.LVL103:
+ 1202 04e8 6FF05FF9 		j	.L33
+ 1203              	.L32:
+ 1204              	.LBE37:
+ 326:src/Interrupt.cpp ****             uint64 sepc;
+ 1205              		.loc 1 326 13 is_stmt 1
+ 327:src/Interrupt.cpp ****             asm volatile("csrr %0, sepc":"=r"(sepc));
+ 1206              		.loc 1 327 13
+ 327:src/Interrupt.cpp ****             asm volatile("csrr %0, sepc":"=r"(sepc));
+ 1207              		.loc 1 327 53 is_stmt 0
+ 1208              	#APP
+ 1209              	# 327 "src/Interrupt.cpp" 1
+ 1210              		csrr s1, sepc
+ 1211              	# 0 "" 2
+ 1212              	.LVL104:
+GAS LISTING /tmp/ccehoCYN.s 			page 36
+
+
+ 328:src/Interrupt.cpp ****             uint64 sstatus;
+ 1213              		.loc 1 328 13 is_stmt 1
+ 329:src/Interrupt.cpp ****             asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 1214              		.loc 1 329 13
+ 329:src/Interrupt.cpp ****             asm volatile("csrr %0, sstatus":"=r"(sstatus));
+ 1215              		.loc 1 329 59 is_stmt 0
+ 1216              	# 329 "src/Interrupt.cpp" 1
+ 1217              		csrr s2, sstatus
+ 1218              	# 0 "" 2
+ 1219              	.LVL105:
+ 331:src/Interrupt.cpp ****             if(++CThread::time == DEFAULT_TIME_SLICE) {
+ 1220              		.loc 1 331 13 is_stmt 1
+ 331:src/Interrupt.cpp ****             if(++CThread::time == DEFAULT_TIME_SLICE) {
+ 1221              		.loc 1 331 16 is_stmt 0
+ 1222              	#NO_APP
+ 1223 04f4 17070000 		la	a4,_ZN7CThread4timeE
+ 1223      03370700 
+ 1224 04fc 83270700 		lw	a5,0(a4)
+ 1225 0500 9B871700 		addiw	a5,a5,1
+ 1226 0504 9B860700 		sext.w	a3,a5
+ 331:src/Interrupt.cpp ****             if(++CThread::time == DEFAULT_TIME_SLICE) {
+ 1227              		.loc 1 331 32
+ 1228 0508 2320F700 		sw	a5,0(a4)
+ 331:src/Interrupt.cpp ****             if(++CThread::time == DEFAULT_TIME_SLICE) {
+ 1229              		.loc 1 331 13
+ 1230 050c 93072000 		li	a5,2
+ 1231 0510 6386F602 		beq	a3,a5,.L38
+ 1232              	.L35:
+ 336:src/Interrupt.cpp ****             asm volatile("csrw sstatus, %0": :"r"(sstatus));
+ 1233              		.loc 1 336 13 is_stmt 1
+ 336:src/Interrupt.cpp ****             asm volatile("csrw sstatus, %0": :"r"(sstatus));
+ 1234              		.loc 1 336 60 is_stmt 0
+ 1235              	#APP
+ 1236              	# 336 "src/Interrupt.cpp" 1
+ 337:src/Interrupt.cpp ****             asm volatile("csrw sepc, %0": :"r"(sepc));
+ 1237              		csrw sstatus, s2
+ 1238              	# 0 "" 2
+ 1239              		.loc 1 337 13 is_stmt 1
+ 337:src/Interrupt.cpp ****             asm volatile("csrw sepc, %0": :"r"(sepc));
+ 1240              		.loc 1 337 54 is_stmt 0
+ 1241              	# 337 "src/Interrupt.cpp" 1
+ 339:src/Interrupt.cpp ****             asm volatile("csrc sip, 0x02");
+ 1242              		csrw sepc, s1
+ 1243              	# 0 "" 2
+ 1244              		.loc 1 339 13 is_stmt 1
+ 339:src/Interrupt.cpp ****             asm volatile("csrc sip, 0x02");
+ 1245              		.loc 1 339 43 is_stmt 0
+ 1246              	# 339 "src/Interrupt.cpp" 1
+ 340:src/Interrupt.cpp ****             break;
+ 1247              		csrc sip, 0x02
+ 1248              	# 0 "" 2
+ 1249              		.loc 1 340 13 is_stmt 1
+ 1250              	.LVL106:
+ 1251              	#NO_APP
+ 1252              	.L6:
+ 1253              	.LBE36:
+ 1254              	.LBE41:
+GAS LISTING /tmp/ccehoCYN.s 			page 37
+
+
+ 353:src/Interrupt.cpp **** }
+ 1255              		.loc 1 353 1 is_stmt 0
+ 1256 0520 83308106 		ld	ra,104(sp)
+ 1257              		.cfi_remember_state
+ 1258              		.cfi_restore 1
+ 1259 0524 03340106 		ld	s0,96(sp)
+ 1260              		.cfi_restore 8
+ 1261              		.cfi_def_cfa 2, 112
+ 1262 0528 83348105 		ld	s1,88(sp)
+ 1263              		.cfi_restore 9
+ 1264 052c 03390105 		ld	s2,80(sp)
+ 1265              		.cfi_restore 18
+ 1266 0530 83398104 		ld	s3,72(sp)
+ 1267              		.cfi_restore 19
+ 1268 0534 13010107 		addi	sp,sp,112
+ 1269              		.cfi_def_cfa_offset 0
+ 1270 0538 67800000 		jr	ra
+ 1271              	.LVL107:
+ 1272              	.L38:
+ 1273              		.cfi_restore_state
+ 1274              	.LBB42:
+ 1275              	.LBB38:
+ 332:src/Interrupt.cpp ****                 CThread::time = 0;
+ 1276              		.loc 1 332 17 is_stmt 1
+ 332:src/Interrupt.cpp ****                 CThread::time = 0;
+ 1277              		.loc 1 332 31 is_stmt 0
+ 1278 053c 23200700 		sw	zero,0(a4)
+ 333:src/Interrupt.cpp ****                 CThread::yield();
+ 1279              		.loc 1 333 17 is_stmt 1
+ 333:src/Interrupt.cpp ****                 CThread::yield();
+ 1280              		.loc 1 333 31 is_stmt 0
+ 1281 0540 97000000 		call	_ZN7CThread5yieldEv@plt
+ 1281      E7800000 
+ 1282              	.LVL108:
+ 1283 0548 6FF0DFFC 		j	.L35
+ 1284              	.LBE38:
+ 1285              	.LBE42:
+ 1286              		.cfi_endproc
+ 1287              	.LFE25:
+ 1289              	.Letext0:
+ 1290              		.file 2 "src/../lib/hw.h"
+ 1291              		.file 3 "src/../h/MemoryAllocator.h"
+ 1292              		.file 4 "src/../h/Scheduler.h"
+ 1293              		.file 5 "src/../h/CThread.h"
+ 1294              		.file 6 "src/../h/CSemaphore.h"
+ 1295              		.file 7 "src/../h/Sleep.h"
+ 1296              		.file 8 "src/../h/GetBuffer.h"
+ 1297              		.file 9 "src/../h/PutBuffer.h"
+ 1298              		.file 10 "src/../h/syscall_c.h"
+GAS LISTING /tmp/ccehoCYN.s 			page 38
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 Interrupt.cpp
+     /tmp/ccehoCYN.s:9      .text:0000000000000000 _Z5flushv
+     /tmp/ccehoCYN.s:13     .text:0000000000000000 .L0 
+     /tmp/ccehoCYN.s:14     .text:0000000000000000 .L0 
+     /tmp/ccehoCYN.s:15     .text:0000000000000004 .L0 
+     /tmp/ccehoCYN.s:20     .text:0000000000000014 .L0 
+     /tmp/ccehoCYN.s:21     .text:0000000000000014 .L0 
+     /tmp/ccehoCYN.s:22     .text:0000000000000014 .L0 
+     /tmp/ccehoCYN.s:23     .text:0000000000000014 .L0 
+     /tmp/ccehoCYN.s:25     .text:0000000000000018 .L0 
+     /tmp/ccehoCYN.s:27     .text:0000000000000018 .L0 
+     /tmp/ccehoCYN.s:28     .text:0000000000000018 .L0 
+     /tmp/ccehoCYN.s:36     .text:0000000000000028 .L0 
+     /tmp/ccehoCYN.s:37     .text:0000000000000028 .L0 
+     /tmp/ccehoCYN.s:42     .text:000000000000002c .L0 
+     /tmp/ccehoCYN.s:43     .text:000000000000002c .L0 
+     /tmp/ccehoCYN.s:44     .text:000000000000002c .L0 
+     /tmp/ccehoCYN.s:49     .text:0000000000000040 .L0 
+     /tmp/ccehoCYN.s:51     .text:0000000000000044 .L0 
+     /tmp/ccehoCYN.s:53     .text:0000000000000048 .L0 
+     /tmp/ccehoCYN.s:57     .text:0000000000000050 .L0 
+     /tmp/ccehoCYN.s:58     .text:0000000000000050 .L0 
+     /tmp/ccehoCYN.s:62     .text:000000000000005c .L0 
+     /tmp/ccehoCYN.s:63     .text:000000000000005c .L0 
+     /tmp/ccehoCYN.s:68     .text:0000000000000070 .L0 
+     /tmp/ccehoCYN.s:73     .text:0000000000000074 .L0 
+     /tmp/ccehoCYN.s:74     .text:0000000000000078 .L0 
+     /tmp/ccehoCYN.s:76     .text:000000000000007c .L0 
+     /tmp/ccehoCYN.s:77     .text:000000000000007c .L0 
+     /tmp/ccehoCYN.s:79     .text:0000000000000080 .L0 
+     /tmp/ccehoCYN.s:81     .text:0000000000000084 .L0 
+     /tmp/ccehoCYN.s:84     .text:0000000000000088 .L0 
+     /tmp/ccehoCYN.s:86     .text:000000000000008c .L0 
+     /tmp/ccehoCYN.s:92     .text:000000000000008c interrupt
+     /tmp/ccehoCYN.s:95     .text:000000000000008c .L0 
+     /tmp/ccehoCYN.s:96     .text:000000000000008c .L0 
+     /tmp/ccehoCYN.s:97     .text:0000000000000090 .L0 
+     /tmp/ccehoCYN.s:103    .text:00000000000000a4 .L0 
+     /tmp/ccehoCYN.s:104    .text:00000000000000a4 .L0 
+     /tmp/ccehoCYN.s:105    .text:00000000000000a4 .L0 
+     /tmp/ccehoCYN.s:106    .text:00000000000000a4 .L0 
+     /tmp/ccehoCYN.s:107    .text:00000000000000a4 .L0 
+     /tmp/ccehoCYN.s:109    .text:00000000000000a8 .L0 
+     /tmp/ccehoCYN.s:111    .text:00000000000000a8 .L0 
+     /tmp/ccehoCYN.s:112    .text:00000000000000a8 .L0 
+   src/Interrupt.cpp:17     .text:00000000000000a8 .L0 
+     /tmp/ccehoCYN.s:118    .text:00000000000000ac .L0 
+     /tmp/ccehoCYN.s:119    .text:00000000000000ac .L0 
+   src/Interrupt.cpp:19     .text:00000000000000ac .L0 
+     /tmp/ccehoCYN.s:124    .text:00000000000000b0 .L0 
+     /tmp/ccehoCYN.s:125    .text:00000000000000b0 .L0 
+   src/Interrupt.cpp:21     .text:00000000000000b0 .L0 
+     /tmp/ccehoCYN.s:130    .text:00000000000000b4 .L0 
+     /tmp/ccehoCYN.s:131    .text:00000000000000b4 .L0 
+   src/Interrupt.cpp:23     .text:00000000000000b4 .L0 
+     /tmp/ccehoCYN.s:136    .text:00000000000000b8 .L0 
+GAS LISTING /tmp/ccehoCYN.s 			page 39
+
+
+     /tmp/ccehoCYN.s:137    .text:00000000000000b8 .L0 
+   src/Interrupt.cpp:25     .text:00000000000000b8 .L0 
+     /tmp/ccehoCYN.s:142    .text:00000000000000bc .L0 
+     /tmp/ccehoCYN.s:143    .text:00000000000000bc .L0 
+   src/Interrupt.cpp:27     .text:00000000000000bc .L0 
+     /tmp/ccehoCYN.s:148    .text:00000000000000c0 .L0 
+     /tmp/ccehoCYN.s:149    .text:00000000000000c0 .L0 
+   src/Interrupt.cpp:29     .text:00000000000000c0 .L0 
+     /tmp/ccehoCYN.s:154    .text:00000000000000c4 .L0 
+     /tmp/ccehoCYN.s:155    .text:00000000000000c4 .L0 
+   src/Interrupt.cpp:31     .text:00000000000000c4 .L0 
+     /tmp/ccehoCYN.s:160    .text:00000000000000c8 .L0 
+     /tmp/ccehoCYN.s:161    .text:00000000000000c8 .L0 
+   src/Interrupt.cpp:33     .text:00000000000000c8 .L0 
+     /tmp/ccehoCYN.s:169    .text:00000000000000cc .L0 
+     /tmp/ccehoCYN.s:183    .text:00000000000000f8 .L0 
+     /tmp/ccehoCYN.s:184    .text:00000000000000f8 .L0 
+     /tmp/ccehoCYN.s:187    .text:00000000000000f8 .L0 
+     /tmp/ccehoCYN.s:188    .text:00000000000000f8 .L0 
+     /tmp/ccehoCYN.s:189    .text:00000000000000f8 .L0 
+   src/Interrupt.cpp:42     .text:00000000000000f8 .L0 
+     /tmp/ccehoCYN.s:198    .text:00000000000000fc .L0 
+     /tmp/ccehoCYN.s:301    .text:0000000000000124 .L0 
+     /tmp/ccehoCYN.s:307    .text:0000000000000134 .L0 
+     /tmp/ccehoCYN.s:308    .text:0000000000000134 .L0 
+     /tmp/ccehoCYN.s:311    .text:0000000000000134 .L0 
+     /tmp/ccehoCYN.s:312    .text:0000000000000134 .L0 
+     /tmp/ccehoCYN.s:315    .text:000000000000013c .L0 
+     /tmp/ccehoCYN.s:319    .text:0000000000000144 .L0 
+     /tmp/ccehoCYN.s:320    .text:0000000000000144 .L0 
+     /tmp/ccehoCYN.s:325    .text:0000000000000150 .L0 
+     /tmp/ccehoCYN.s:326    .text:0000000000000150 .L0 
+     /tmp/ccehoCYN.s:328    .text:0000000000000154 .L0 
+     /tmp/ccehoCYN.s:332    .text:000000000000015c .L0 
+     /tmp/ccehoCYN.s:333    .text:000000000000015c .L0 
+     /tmp/ccehoCYN.s:337    .text:0000000000000168 .L0 
+     /tmp/ccehoCYN.s:338    .text:0000000000000168 .L0 
+     /tmp/ccehoCYN.s:340    .text:000000000000016c .L0 
+     /tmp/ccehoCYN.s:344    .text:0000000000000174 .L0 
+     /tmp/ccehoCYN.s:345    .text:0000000000000174 .L0 
+     /tmp/ccehoCYN.s:349    .text:0000000000000184 .L0 
+     /tmp/ccehoCYN.s:356    .text:0000000000000188 .L0 
+     /tmp/ccehoCYN.s:357    .text:0000000000000188 .L0 
+     /tmp/ccehoCYN.s:359    .text:000000000000018c .L0 
+     /tmp/ccehoCYN.s:364    .text:0000000000000194 .L0 
+     /tmp/ccehoCYN.s:365    .text:0000000000000194 .L0 
+     /tmp/ccehoCYN.s:366    .text:0000000000000194 .L0 
+     /tmp/ccehoCYN.s:371    .text:00000000000001a8 .L0 
+     /tmp/ccehoCYN.s:373    .text:00000000000001ac .L0 
+     /tmp/ccehoCYN.s:375    .text:00000000000001b0 .L0 
+     /tmp/ccehoCYN.s:379    .text:00000000000001b8 .L0 
+     /tmp/ccehoCYN.s:380    .text:00000000000001b8 .L0 
+     /tmp/ccehoCYN.s:384    .text:00000000000001c4 .L0 
+     /tmp/ccehoCYN.s:385    .text:00000000000001c4 .L0 
+     /tmp/ccehoCYN.s:390    .text:00000000000001d8 .L0 
+     /tmp/ccehoCYN.s:392    .text:00000000000001dc .L0 
+     /tmp/ccehoCYN.s:393    .text:00000000000001dc .L0 
+GAS LISTING /tmp/ccehoCYN.s 			page 40
+
+
+     /tmp/ccehoCYN.s:396    .text:00000000000001e0 .L0 
+     /tmp/ccehoCYN.s:407    .text:00000000000001e4 .L0 
+     /tmp/ccehoCYN.s:409    .text:00000000000001e4 .L0 
+     /tmp/ccehoCYN.s:410    .text:00000000000001e4 .L0 
+     /tmp/ccehoCYN.s:411    .text:00000000000001e4 .L0 
+   src/Interrupt.cpp:47     .text:00000000000001e4 .L0 
+     /tmp/ccehoCYN.s:418    .text:00000000000001e8 .L0 
+     /tmp/ccehoCYN.s:420    .text:00000000000001e8 .L0 
+     /tmp/ccehoCYN.s:423    .text:00000000000001ec .L0 
+     /tmp/ccehoCYN.s:424    .text:00000000000001ec .L0 
+     /tmp/ccehoCYN.s:427    .text:00000000000001f4 .L0 
+     /tmp/ccehoCYN.s:431    .text:0000000000000200 .L0 
+   src/Interrupt.cpp:52     .text:0000000000000200 .L0 
+     /tmp/ccehoCYN.s:437    .text:0000000000000204 .L0 
+   src/Interrupt.cpp:54     .text:0000000000000204 .L0 
+     /tmp/ccehoCYN.s:442    .text:0000000000000208 .L0 
+   src/Interrupt.cpp:55     .text:0000000000000208 .L0 
+     /tmp/ccehoCYN.s:448    .text:000000000000020c .L0 
+     /tmp/ccehoCYN.s:453    .text:0000000000000210 .L0 
+     /tmp/ccehoCYN.s:455    .text:0000000000000210 .L0 
+     /tmp/ccehoCYN.s:456    .text:0000000000000210 .L0 
+     /tmp/ccehoCYN.s:457    .text:0000000000000210 .L0 
+   src/Interrupt.cpp:61     .text:0000000000000210 .L0 
+     /tmp/ccehoCYN.s:464    .text:0000000000000214 .L0 
+     /tmp/ccehoCYN.s:466    .text:0000000000000214 .L0 
+     /tmp/ccehoCYN.s:469    .text:0000000000000218 .L0 
+     /tmp/ccehoCYN.s:470    .text:0000000000000218 .L0 
+     /tmp/ccehoCYN.s:473    .text:0000000000000220 .L0 
+     /tmp/ccehoCYN.s:477    .text:000000000000022c .L0 
+   src/Interrupt.cpp:67     .text:000000000000022c .L0 
+     /tmp/ccehoCYN.s:484    .text:0000000000000230 .L0 
+     /tmp/ccehoCYN.s:489    .text:0000000000000234 .L0 
+     /tmp/ccehoCYN.s:491    .text:0000000000000234 .L0 
+     /tmp/ccehoCYN.s:492    .text:0000000000000234 .L0 
+     /tmp/ccehoCYN.s:493    .text:0000000000000234 .L0 
+   src/Interrupt.cpp:74     .text:0000000000000234 .L0 
+     /tmp/ccehoCYN.s:500    .text:0000000000000238 .L0 
+     /tmp/ccehoCYN.s:502    .text:0000000000000238 .L0 
+     /tmp/ccehoCYN.s:505    .text:000000000000023c .L0 
+     /tmp/ccehoCYN.s:506    .text:000000000000023c .L0 
+     /tmp/ccehoCYN.s:507    .text:000000000000023c .L0 
+     /tmp/ccehoCYN.s:508    .text:000000000000023c .L0 
+     /tmp/ccehoCYN.s:509    .text:000000000000023c .L0 
+     /tmp/ccehoCYN.s:515    .text:0000000000000250 .L0 
+   src/Interrupt.cpp:83     .text:0000000000000250 .L0 
+     /tmp/ccehoCYN.s:521    .text:0000000000000254 .L0 
+   src/Interrupt.cpp:84     .text:0000000000000254 .L0 
+     /tmp/ccehoCYN.s:526    .text:0000000000000258 .L0 
+   src/Interrupt.cpp:85     .text:0000000000000258 .L0 
+     /tmp/ccehoCYN.s:532    .text:000000000000025c .L0 
+     /tmp/ccehoCYN.s:537    .text:0000000000000260 .L0 
+     /tmp/ccehoCYN.s:539    .text:0000000000000260 .L0 
+     /tmp/ccehoCYN.s:540    .text:0000000000000260 .L0 
+     /tmp/ccehoCYN.s:541    .text:0000000000000260 .L0 
+   src/Interrupt.cpp:91     .text:0000000000000260 .L0 
+     /tmp/ccehoCYN.s:548    .text:0000000000000264 .L0 
+     /tmp/ccehoCYN.s:550    .text:0000000000000264 .L0 
+GAS LISTING /tmp/ccehoCYN.s 			page 41
+
+
+     /tmp/ccehoCYN.s:553    .text:0000000000000268 .L0 
+     /tmp/ccehoCYN.s:554    .text:0000000000000268 .L0 
+     /tmp/ccehoCYN.s:557    .text:0000000000000274 .L0 
+     /tmp/ccehoCYN.s:560    .text:000000000000027c .L0 
+     /tmp/ccehoCYN.s:561    .text:000000000000027c .L0 
+     /tmp/ccehoCYN.s:564    .text:0000000000000284 .L0 
+     /tmp/ccehoCYN.s:565    .text:0000000000000284 .L0 
+     /tmp/ccehoCYN.s:566    .text:0000000000000284 .L0 
+     /tmp/ccehoCYN.s:572    .text:000000000000028c .L0 
+   src/Interrupt.cpp:99     .text:000000000000028c .L0 
+     /tmp/ccehoCYN.s:577    .text:0000000000000290 .L0 
+   src/Interrupt.cpp:100    .text:0000000000000290 .L0 
+     /tmp/ccehoCYN.s:583    .text:0000000000000294 .L0 
+     /tmp/ccehoCYN.s:588    .text:0000000000000298 .L0 
+     /tmp/ccehoCYN.s:590    .text:0000000000000298 .L0 
+     /tmp/ccehoCYN.s:591    .text:0000000000000298 .L0 
+     /tmp/ccehoCYN.s:592    .text:0000000000000298 .L0 
+   src/Interrupt.cpp:106    .text:0000000000000298 .L0 
+     /tmp/ccehoCYN.s:599    .text:000000000000029c .L0 
+     /tmp/ccehoCYN.s:601    .text:000000000000029c .L0 
+     /tmp/ccehoCYN.s:604    .text:00000000000002a0 .L0 
+     /tmp/ccehoCYN.s:605    .text:00000000000002a0 .L0 
+   src/Interrupt.cpp:111    .text:00000000000002a0 .L0 
+     /tmp/ccehoCYN.s:612    .text:00000000000002a4 .L0 
+     /tmp/ccehoCYN.s:614    .text:00000000000002a4 .L0 
+     /tmp/ccehoCYN.s:617    .text:00000000000002ac .L0 
+   src/Interrupt.cpp:114    .text:00000000000002ac .L0 
+     /tmp/ccehoCYN.s:623    .text:00000000000002b0 .L0 
+   src/Interrupt.cpp:116    .text:00000000000002b0 .L0 
+     /tmp/ccehoCYN.s:629    .text:00000000000002b4 .L0 
+     /tmp/ccehoCYN.s:634    .text:00000000000002b8 .L0 
+     /tmp/ccehoCYN.s:636    .text:00000000000002b8 .L0 
+     /tmp/ccehoCYN.s:637    .text:00000000000002b8 .L0 
+     /tmp/ccehoCYN.s:638    .text:00000000000002b8 .L0 
+   src/Interrupt.cpp:122    .text:00000000000002b8 .L0 
+     /tmp/ccehoCYN.s:645    .text:00000000000002bc .L0 
+     /tmp/ccehoCYN.s:647    .text:00000000000002bc .L0 
+     /tmp/ccehoCYN.s:650    .text:00000000000002c0 .L0 
+     /tmp/ccehoCYN.s:651    .text:00000000000002c0 .L0 
+     /tmp/ccehoCYN.s:654    .text:00000000000002c8 .L0 
+     /tmp/ccehoCYN.s:658    .text:00000000000002d4 .L0 
+   src/Interrupt.cpp:128    .text:00000000000002d4 .L0 
+     /tmp/ccehoCYN.s:665    .text:00000000000002d8 .L0 
+     /tmp/ccehoCYN.s:670    .text:00000000000002dc .L0 
+     /tmp/ccehoCYN.s:672    .text:00000000000002dc .L0 
+     /tmp/ccehoCYN.s:673    .text:00000000000002dc .L0 
+     /tmp/ccehoCYN.s:674    .text:00000000000002dc .L0 
+   src/Interrupt.cpp:135    .text:00000000000002dc .L0 
+     /tmp/ccehoCYN.s:681    .text:00000000000002e0 .L0 
+     /tmp/ccehoCYN.s:683    .text:00000000000002e0 .L0 
+     /tmp/ccehoCYN.s:686    .text:00000000000002e4 .L0 
+     /tmp/ccehoCYN.s:687    .text:00000000000002e4 .L0 
+     /tmp/ccehoCYN.s:688    .text:00000000000002e4 .L0 
+     /tmp/ccehoCYN.s:689    .text:00000000000002e4 .L0 
+     /tmp/ccehoCYN.s:694    .text:00000000000002f4 .L0 
+   src/Interrupt.cpp:143    .text:00000000000002f4 .L0 
+     /tmp/ccehoCYN.s:700    .text:00000000000002f8 .L0 
+GAS LISTING /tmp/ccehoCYN.s 			page 42
+
+
+   src/Interrupt.cpp:144    .text:00000000000002f8 .L0 
+     /tmp/ccehoCYN.s:705    .text:00000000000002fc .L0 
+   src/Interrupt.cpp:145    .text:00000000000002fc .L0 
+     /tmp/ccehoCYN.s:711    .text:0000000000000300 .L0 
+     /tmp/ccehoCYN.s:716    .text:0000000000000304 .L0 
+     /tmp/ccehoCYN.s:718    .text:0000000000000304 .L0 
+     /tmp/ccehoCYN.s:719    .text:0000000000000304 .L0 
+     /tmp/ccehoCYN.s:720    .text:0000000000000304 .L0 
+   src/Interrupt.cpp:151    .text:0000000000000304 .L0 
+     /tmp/ccehoCYN.s:727    .text:0000000000000308 .L0 
+     /tmp/ccehoCYN.s:729    .text:0000000000000308 .L0 
+     /tmp/ccehoCYN.s:732    .text:000000000000030c .L0 
+     /tmp/ccehoCYN.s:733    .text:000000000000030c .L0 
+     /tmp/ccehoCYN.s:734    .text:000000000000030c .L0 
+     /tmp/ccehoCYN.s:738    .text:0000000000000318 .L0 
+   src/Interrupt.cpp:157    .text:0000000000000318 .L0 
+     /tmp/ccehoCYN.s:744    .text:000000000000031c .L0 
+   src/Interrupt.cpp:158    .text:000000000000031c .L0 
+     /tmp/ccehoCYN.s:749    .text:0000000000000320 .L0 
+   src/Interrupt.cpp:159    .text:0000000000000320 .L0 
+     /tmp/ccehoCYN.s:755    .text:0000000000000324 .L0 
+     /tmp/ccehoCYN.s:760    .text:0000000000000328 .L0 
+     /tmp/ccehoCYN.s:762    .text:0000000000000328 .L0 
+     /tmp/ccehoCYN.s:763    .text:0000000000000328 .L0 
+     /tmp/ccehoCYN.s:764    .text:0000000000000328 .L0 
+   src/Interrupt.cpp:166    .text:0000000000000328 .L0 
+     /tmp/ccehoCYN.s:771    .text:000000000000032c .L0 
+     /tmp/ccehoCYN.s:773    .text:000000000000032c .L0 
+     /tmp/ccehoCYN.s:776    .text:0000000000000330 .L0 
+     /tmp/ccehoCYN.s:777    .text:0000000000000330 .L0 
+   src/Interrupt.cpp:171    .text:0000000000000330 .L0 
+     /tmp/ccehoCYN.s:784    .text:0000000000000334 .L0 
+     /tmp/ccehoCYN.s:785    .text:0000000000000334 .L0 
+     /tmp/ccehoCYN.s:787    .text:0000000000000334 .L0 
+     /tmp/ccehoCYN.s:791    .text:0000000000000340 .L0 
+   src/Interrupt.cpp:175    .text:0000000000000340 .L0 
+     /tmp/ccehoCYN.s:797    .text:0000000000000344 .L0 
+   src/Interrupt.cpp:176    .text:0000000000000344 .L0 
+     /tmp/ccehoCYN.s:802    .text:0000000000000348 .L0 
+   src/Interrupt.cpp:178    .text:0000000000000348 .L0 
+     /tmp/ccehoCYN.s:807    .text:000000000000034c .L0 
+   src/Interrupt.cpp:179    .text:000000000000034c .L0 
+     /tmp/ccehoCYN.s:813    .text:0000000000000350 .L0 
+     /tmp/ccehoCYN.s:818    .text:0000000000000354 .L0 
+     /tmp/ccehoCYN.s:820    .text:0000000000000354 .L0 
+     /tmp/ccehoCYN.s:821    .text:0000000000000354 .L0 
+     /tmp/ccehoCYN.s:822    .text:0000000000000354 .L0 
+   src/Interrupt.cpp:186    .text:0000000000000354 .L0 
+     /tmp/ccehoCYN.s:829    .text:0000000000000358 .L0 
+     /tmp/ccehoCYN.s:831    .text:0000000000000358 .L0 
+     /tmp/ccehoCYN.s:834    .text:000000000000035c .L0 
+     /tmp/ccehoCYN.s:835    .text:000000000000035c .L0 
+     /tmp/ccehoCYN.s:836    .text:000000000000035c .L0 
+     /tmp/ccehoCYN.s:840    .text:0000000000000368 .L0 
+   src/Interrupt.cpp:193    .text:0000000000000368 .L0 
+     /tmp/ccehoCYN.s:846    .text:000000000000036c .L0 
+   src/Interrupt.cpp:194    .text:000000000000036c .L0 
+GAS LISTING /tmp/ccehoCYN.s 			page 43
+
+
+     /tmp/ccehoCYN.s:851    .text:0000000000000370 .L0 
+   src/Interrupt.cpp:195    .text:0000000000000370 .L0 
+     /tmp/ccehoCYN.s:857    .text:0000000000000374 .L0 
+     /tmp/ccehoCYN.s:862    .text:0000000000000378 .L0 
+     /tmp/ccehoCYN.s:864    .text:0000000000000378 .L0 
+     /tmp/ccehoCYN.s:865    .text:0000000000000378 .L0 
+     /tmp/ccehoCYN.s:866    .text:0000000000000378 .L0 
+   src/Interrupt.cpp:203    .text:0000000000000378 .L0 
+     /tmp/ccehoCYN.s:873    .text:000000000000037c .L0 
+     /tmp/ccehoCYN.s:875    .text:000000000000037c .L0 
+     /tmp/ccehoCYN.s:878    .text:0000000000000380 .L0 
+     /tmp/ccehoCYN.s:879    .text:0000000000000380 .L0 
+   src/Interrupt.cpp:208    .text:0000000000000380 .L0 
+     /tmp/ccehoCYN.s:886    .text:0000000000000384 .L0 
+     /tmp/ccehoCYN.s:887    .text:0000000000000384 .L0 
+     /tmp/ccehoCYN.s:889    .text:0000000000000384 .L0 
+     /tmp/ccehoCYN.s:893    .text:0000000000000390 .L0 
+   src/Interrupt.cpp:213    .text:0000000000000390 .L0 
+     /tmp/ccehoCYN.s:899    .text:0000000000000394 .L0 
+   src/Interrupt.cpp:214    .text:0000000000000394 .L0 
+     /tmp/ccehoCYN.s:905    .text:0000000000000398 .L0 
+     /tmp/ccehoCYN.s:910    .text:000000000000039c .L0 
+     /tmp/ccehoCYN.s:912    .text:000000000000039c .L0 
+     /tmp/ccehoCYN.s:913    .text:000000000000039c .L0 
+     /tmp/ccehoCYN.s:914    .text:000000000000039c .L0 
+   src/Interrupt.cpp:222    .text:000000000000039c .L0 
+     /tmp/ccehoCYN.s:921    .text:00000000000003a0 .L0 
+     /tmp/ccehoCYN.s:923    .text:00000000000003a0 .L0 
+     /tmp/ccehoCYN.s:926    .text:00000000000003a4 .L0 
+     /tmp/ccehoCYN.s:927    .text:00000000000003a4 .L0 
+   src/Interrupt.cpp:226    .text:00000000000003a4 .L0 
+     /tmp/ccehoCYN.s:934    .text:00000000000003a8 .L0 
+     /tmp/ccehoCYN.s:936    .text:00000000000003a8 .L0 
+     /tmp/ccehoCYN.s:941    .text:00000000000003bc .L0 
+   src/Interrupt.cpp:229    .text:00000000000003bc .L0 
+     /tmp/ccehoCYN.s:947    .text:00000000000003c0 .L0 
+   src/Interrupt.cpp:230    .text:00000000000003c0 .L0 
+     /tmp/ccehoCYN.s:952    .text:00000000000003c4 .L0 
+   src/Interrupt.cpp:232    .text:00000000000003c4 .L0 
+     /tmp/ccehoCYN.s:957    .text:00000000000003c8 .L0 
+   src/Interrupt.cpp:233    .text:00000000000003c8 .L0 
+     /tmp/ccehoCYN.s:963    .text:00000000000003cc .L0 
+     /tmp/ccehoCYN.s:968    .text:00000000000003d0 .L0 
+     /tmp/ccehoCYN.s:970    .text:00000000000003d0 .L0 
+     /tmp/ccehoCYN.s:971    .text:00000000000003d0 .L0 
+     /tmp/ccehoCYN.s:972    .text:00000000000003d0 .L0 
+   src/Interrupt.cpp:240    .text:00000000000003d0 .L0 
+     /tmp/ccehoCYN.s:979    .text:00000000000003d4 .L0 
+     /tmp/ccehoCYN.s:981    .text:00000000000003d4 .L0 
+     /tmp/ccehoCYN.s:984    .text:00000000000003d8 .L0 
+     /tmp/ccehoCYN.s:985    .text:00000000000003d8 .L0 
+   src/Interrupt.cpp:244    .text:00000000000003d8 .L0 
+     /tmp/ccehoCYN.s:992    .text:00000000000003dc .L0 
+     /tmp/ccehoCYN.s:994    .text:00000000000003dc .L0 
+     /tmp/ccehoCYN.s:1000   .text:00000000000003f4 .L0 
+     /tmp/ccehoCYN.s:1001   .text:00000000000003f4 .L0 
+     /tmp/ccehoCYN.s:1004   .text:00000000000003fc .L0 
+GAS LISTING /tmp/ccehoCYN.s 			page 44
+
+
+   src/Interrupt.cpp:248    .text:00000000000003fc .L0 
+     /tmp/ccehoCYN.s:1010   .text:0000000000000400 .L0 
+   src/Interrupt.cpp:249    .text:0000000000000400 .L0 
+     /tmp/ccehoCYN.s:1016   .text:0000000000000404 .L0 
+     /tmp/ccehoCYN.s:1021   .text:0000000000000408 .L0 
+     /tmp/ccehoCYN.s:1023   .text:0000000000000408 .L0 
+     /tmp/ccehoCYN.s:1024   .text:0000000000000408 .L0 
+     /tmp/ccehoCYN.s:1025   .text:0000000000000408 .L0 
+   src/Interrupt.cpp:257    .text:0000000000000408 .L0 
+     /tmp/ccehoCYN.s:1032   .text:000000000000040c .L0 
+     /tmp/ccehoCYN.s:1033   .text:000000000000040c .L0 
+   src/Interrupt.cpp:259    .text:000000000000040c .L0 
+     /tmp/ccehoCYN.s:1039   .text:0000000000000410 .L0 
+     /tmp/ccehoCYN.s:1041   .text:0000000000000410 .L0 
+     /tmp/ccehoCYN.s:1044   .text:0000000000000414 .L0 
+   src/Interrupt.cpp:261    .text:0000000000000414 .L0 
+     /tmp/ccehoCYN.s:1050   .text:0000000000000418 .L0 
+     /tmp/ccehoCYN.s:1052   .text:0000000000000418 .L0 
+     /tmp/ccehoCYN.s:1055   .text:000000000000041c .L0 
+   src/Interrupt.cpp:263    .text:000000000000041c .L0 
+     /tmp/ccehoCYN.s:1062   .text:0000000000000420 .L0 
+     /tmp/ccehoCYN.s:1067   .text:0000000000000424 .L0 
+     /tmp/ccehoCYN.s:1069   .text:0000000000000424 .L0 
+     /tmp/ccehoCYN.s:1070   .text:0000000000000424 .L0 
+     /tmp/ccehoCYN.s:1071   .text:0000000000000424 .L0 
+   src/Interrupt.cpp:269    .text:0000000000000424 .L0 
+     /tmp/ccehoCYN.s:1078   .text:0000000000000428 .L0 
+     /tmp/ccehoCYN.s:1079   .text:0000000000000428 .L0 
+   src/Interrupt.cpp:271    .text:0000000000000428 .L0 
+     /tmp/ccehoCYN.s:1085   .text:000000000000042c .L0 
+     /tmp/ccehoCYN.s:1087   .text:000000000000042c .L0 
+     /tmp/ccehoCYN.s:1090   .text:0000000000000430 .L0 
+   src/Interrupt.cpp:273    .text:0000000000000430 .L0 
+     /tmp/ccehoCYN.s:1096   .text:0000000000000434 .L0 
+     /tmp/ccehoCYN.s:1098   .text:0000000000000434 .L0 
+     /tmp/ccehoCYN.s:1101   .text:0000000000000438 .L0 
+   src/Interrupt.cpp:275    .text:0000000000000438 .L0 
+     /tmp/ccehoCYN.s:1108   .text:000000000000043c .L0 
+     /tmp/ccehoCYN.s:1120   .text:0000000000000440 .L0 
+     /tmp/ccehoCYN.s:1121   .text:0000000000000440 .L0 
+     /tmp/ccehoCYN.s:1131   .text:0000000000000458 .L0 
+     /tmp/ccehoCYN.s:1132   .text:0000000000000458 .L0 
+     /tmp/ccehoCYN.s:1142   .text:0000000000000468 .L0 
+     /tmp/ccehoCYN.s:1145   .text:0000000000000468 .L0 
+     /tmp/ccehoCYN.s:1146   .text:0000000000000468 .L0 
+     /tmp/ccehoCYN.s:1147   .text:0000000000000468 .L0 
+     /tmp/ccehoCYN.s:1153   .text:0000000000000474 .L0 
+     /tmp/ccehoCYN.s:1154   .text:0000000000000474 .L0 
+     /tmp/ccehoCYN.s:1159   .text:000000000000047c .L0 
+     /tmp/ccehoCYN.s:1162   .text:0000000000000480 .L0 
+     /tmp/ccehoCYN.s:1166   .text:0000000000000484 .L0 
+     /tmp/ccehoCYN.s:1170   .text:0000000000000494 .L0 
+     /tmp/ccehoCYN.s:1172   .text:0000000000000498 .L0 
+     /tmp/ccehoCYN.s:1173   .text:0000000000000498 .L0 
+     /tmp/ccehoCYN.s:1175   .text:000000000000049c .L0 
+     /tmp/ccehoCYN.s:1178   .text:00000000000004a4 .L0 
+     /tmp/ccehoCYN.s:1180   .text:00000000000004a8 .L0 
+GAS LISTING /tmp/ccehoCYN.s 			page 45
+
+
+     /tmp/ccehoCYN.s:1182   .text:00000000000004ac .L0 
+     /tmp/ccehoCYN.s:1183   .text:00000000000004ac .L0 
+     /tmp/ccehoCYN.s:1188   .text:00000000000004c0 .L0 
+     /tmp/ccehoCYN.s:1189   .text:00000000000004c0 .L0 
+     /tmp/ccehoCYN.s:1193   .text:00000000000004d0 .L0 
+     /tmp/ccehoCYN.s:1195   .text:00000000000004d4 .L0 
+     /tmp/ccehoCYN.s:1196   .text:00000000000004d4 .L0 
+     /tmp/ccehoCYN.s:1199   .text:00000000000004dc .L0 
+     /tmp/ccehoCYN.s:1206   .text:00000000000004ec .L0 
+     /tmp/ccehoCYN.s:1207   .text:00000000000004ec .L0 
+   src/Interrupt.cpp:327    .text:00000000000004ec .L0 
+     /tmp/ccehoCYN.s:1214   .text:00000000000004f0 .L0 
+     /tmp/ccehoCYN.s:1215   .text:00000000000004f0 .L0 
+   src/Interrupt.cpp:329    .text:00000000000004f0 .L0 
+     /tmp/ccehoCYN.s:1221   .text:00000000000004f4 .L0 
+     /tmp/ccehoCYN.s:1223   .text:00000000000004f4 .L0 
+     /tmp/ccehoCYN.s:1228   .text:0000000000000508 .L0 
+     /tmp/ccehoCYN.s:1230   .text:000000000000050c .L0 
+     /tmp/ccehoCYN.s:1234   .text:0000000000000514 .L0 
+   src/Interrupt.cpp:336    .text:0000000000000514 .L0 
+     /tmp/ccehoCYN.s:1240   .text:0000000000000518 .L0 
+   src/Interrupt.cpp:337    .text:0000000000000518 .L0 
+     /tmp/ccehoCYN.s:1245   .text:000000000000051c .L0 
+   src/Interrupt.cpp:339    .text:000000000000051c .L0 
+     /tmp/ccehoCYN.s:1255   .text:0000000000000520 .L0 
+     /tmp/ccehoCYN.s:1256   .text:0000000000000520 .L0 
+     /tmp/ccehoCYN.s:1257   .text:0000000000000524 .L0 
+     /tmp/ccehoCYN.s:1258   .text:0000000000000524 .L0 
+     /tmp/ccehoCYN.s:1260   .text:0000000000000528 .L0 
+     /tmp/ccehoCYN.s:1261   .text:0000000000000528 .L0 
+     /tmp/ccehoCYN.s:1263   .text:000000000000052c .L0 
+     /tmp/ccehoCYN.s:1265   .text:0000000000000530 .L0 
+     /tmp/ccehoCYN.s:1267   .text:0000000000000534 .L0 
+     /tmp/ccehoCYN.s:1269   .text:0000000000000538 .L0 
+     /tmp/ccehoCYN.s:1273   .text:000000000000053c .L0 
+     /tmp/ccehoCYN.s:1277   .text:000000000000053c .L0 
+     /tmp/ccehoCYN.s:1278   .text:000000000000053c .L0 
+     /tmp/ccehoCYN.s:1280   .text:0000000000000540 .L0 
+     /tmp/ccehoCYN.s:1281   .text:0000000000000540 .L0 
+     /tmp/ccehoCYN.s:1286   .text:000000000000054c .L0 
+     /tmp/ccehoCYN.s:1299   .text:000000000000054c .L0 
+     /tmp/ccehoCYN.s:28     .text:0000000000000018 .L0 
+     /tmp/ccehoCYN.s:44     .text:000000000000002c .L0 
+     /tmp/ccehoCYN.s:58     .text:0000000000000050 .L0 
+     /tmp/ccehoCYN.s:63     .text:000000000000005c .L0 
+     /tmp/ccehoCYN.s:211    .rodata:0000000000000000 .L13
+     /tmp/ccehoCYN.s:203    .text:000000000000010c .L0 
+     /tmp/ccehoCYN.s:320    .text:0000000000000144 .L0 
+     /tmp/ccehoCYN.s:333    .text:000000000000015c .L0 
+     /tmp/ccehoCYN.s:345    .text:0000000000000174 .L0 
+     /tmp/ccehoCYN.s:366    .text:0000000000000194 .L0 
+     /tmp/ccehoCYN.s:380    .text:00000000000001b8 .L0 
+     /tmp/ccehoCYN.s:385    .text:00000000000001c4 .L0 
+     /tmp/ccehoCYN.s:554    .text:0000000000000268 .L0 
+     /tmp/ccehoCYN.s:936    .text:00000000000003a8 .L0 
+     /tmp/ccehoCYN.s:995    .text:00000000000003e0 .L0 
+     /tmp/ccehoCYN.s:1121   .text:0000000000000440 .L0 
+GAS LISTING /tmp/ccehoCYN.s 			page 46
+
+
+     /tmp/ccehoCYN.s:1147   .text:0000000000000468 .L0 
+     /tmp/ccehoCYN.s:1166   .text:0000000000000484 .L0 
+     /tmp/ccehoCYN.s:1183   .text:00000000000004ac .L0 
+     /tmp/ccehoCYN.s:1189   .text:00000000000004c0 .L0 
+     /tmp/ccehoCYN.s:1223   .text:00000000000004f4 .L0 
+     /tmp/ccehoCYN.s:39     .text:000000000000002c .L3
+     /tmp/ccehoCYN.s:70     .text:0000000000000074 .L1
+     /tmp/ccehoCYN.s:33     .text:0000000000000028 .L5
+     /tmp/ccehoCYN.s:1137   .text:0000000000000468 .L7
+     /tmp/ccehoCYN.s:297    .text:0000000000000124 .L8
+     /tmp/ccehoCYN.s:1252   .text:0000000000000520 .L6
+     /tmp/ccehoCYN.s:351    .text:0000000000000188 .L28
+     /tmp/ccehoCYN.s:1110   .text:0000000000000440 .L29
+     /tmp/ccehoCYN.s:1127   .text:0000000000000458 .L30
+     /tmp/ccehoCYN.s:361    .text:0000000000000194 .L31
+     /tmp/ccehoCYN.s:1164   .text:0000000000000484 .L34
+     /tmp/ccehoCYN.s:1203   .text:00000000000004ec .L32
+     /tmp/ccehoCYN.s:1157   .text:000000000000047c .L33
+     /tmp/ccehoCYN.s:1272   .text:000000000000053c .L38
+     /tmp/ccehoCYN.s:1232   .text:0000000000000514 .L35
+     /tmp/ccehoCYN.s:398    .text:00000000000001e4 .L27
+     /tmp/ccehoCYN.s:450    .text:0000000000000210 .L26
+     /tmp/ccehoCYN.s:486    .text:0000000000000234 .L25
+     /tmp/ccehoCYN.s:534    .text:0000000000000260 .L24
+     /tmp/ccehoCYN.s:585    .text:0000000000000298 .L23
+     /tmp/ccehoCYN.s:631    .text:00000000000002b8 .L22
+     /tmp/ccehoCYN.s:667    .text:00000000000002dc .L21
+     /tmp/ccehoCYN.s:713    .text:0000000000000304 .L20
+     /tmp/ccehoCYN.s:757    .text:0000000000000328 .L19
+     /tmp/ccehoCYN.s:815    .text:0000000000000354 .L18
+     /tmp/ccehoCYN.s:859    .text:0000000000000378 .L17
+     /tmp/ccehoCYN.s:907    .text:000000000000039c .L16
+     /tmp/ccehoCYN.s:965    .text:00000000000003d0 .L15
+     /tmp/ccehoCYN.s:1018   .text:0000000000000408 .L14
+     /tmp/ccehoCYN.s:1064   .text:0000000000000424 .L12
+     /tmp/ccehoCYN.s:3167   .debug_abbrev:0000000000000000 .Ldebug_abbrev0
+     /tmp/ccehoCYN.s:4901   .debug_str:00000000000006dd .LASF153
+     /tmp/ccehoCYN.s:4907   .debug_str:00000000000007d4 .LASF154
+     /tmp/ccehoCYN.s:4693   .debug_str:00000000000000fe .LASF155
+     /tmp/ccehoCYN.s:5      .text:0000000000000000 .Ltext0
+     /tmp/ccehoCYN.s:1289   .text:000000000000054c .Letext0
+     /tmp/ccehoCYN.s:4653   .debug_line:0000000000000000 .Ldebug_line0
+     /tmp/ccehoCYN.s:4759   .debug_str:00000000000002e9 .LASF0
+     /tmp/ccehoCYN.s:4777   .debug_str:0000000000000388 .LASF1
+     /tmp/ccehoCYN.s:4853   .debug_str:00000000000005af .LASF2
+     /tmp/ccehoCYN.s:4721   .debug_str:00000000000001d8 .LASF3
+     /tmp/ccehoCYN.s:4859   .debug_str:00000000000005d3 .LASF4
+     /tmp/ccehoCYN.s:4767   .debug_str:000000000000032e .LASF5
+     /tmp/ccehoCYN.s:4667   .debug_str:0000000000000051 .LASF6
+     /tmp/ccehoCYN.s:4839   .debug_str:0000000000000567 .LASF7
+     /tmp/ccehoCYN.s:4831   .debug_str:0000000000000537 .LASF8
+     /tmp/ccehoCYN.s:4771   .debug_str:000000000000035d .LASF9
+     /tmp/ccehoCYN.s:4739   .debug_str:000000000000023b .LASF10
+     /tmp/ccehoCYN.s:4747   .debug_str:0000000000000285 .LASF11
+     /tmp/ccehoCYN.s:4697   .debug_str:0000000000000134 .LASF12
+     /tmp/ccehoCYN.s:4727   .debug_str:0000000000000202 .LASF13
+     /tmp/ccehoCYN.s:4703   .debug_str:0000000000000158 .LASF14
+GAS LISTING /tmp/ccehoCYN.s 			page 47
+
+
+     /tmp/ccehoCYN.s:4695   .debug_str:0000000000000124 .LASF15
+     /tmp/ccehoCYN.s:4887   .debug_str:0000000000000692 .LASF16
+     /tmp/ccehoCYN.s:4719   .debug_str:00000000000001c2 .LASF17
+     /tmp/ccehoCYN.s:4877   .debug_str:0000000000000659 .LASF18
+     /tmp/ccehoCYN.s:4829   .debug_str:0000000000000527 .LASF28
+     /tmp/ccehoCYN.s:4843   .debug_str:0000000000000581 .LASF44
+     /tmp/ccehoCYN.s:4775   .debug_str:0000000000000383 .LASF19
+     /tmp/ccehoCYN.s:4699   .debug_str:0000000000000143 .LASF20
+     /tmp/ccehoCYN.s:4883   .debug_str:0000000000000680 .LASF21
+     /tmp/ccehoCYN.s:4763   .debug_str:000000000000030c .LASF22
+     /tmp/ccehoCYN.s:4941   .debug_str:00000000000008bc .LASF24
+     /tmp/ccehoCYN.s:4677   .debug_str:000000000000008e .LASF30
+     /tmp/ccehoCYN.s:4959   .debug_str:0000000000000969 .LASF33
+     /tmp/ccehoCYN.s:4805   .debug_str:0000000000000440 .LASF35
+     /tmp/ccehoCYN.s:4799   .debug_str:0000000000000413 .LASF23
+     /tmp/ccehoCYN.s:4827   .debug_str:0000000000000503 .LASF25
+     /tmp/ccehoCYN.s:4975   .debug_str:00000000000009cd .LASF26
+     /tmp/ccehoCYN.s:4745   .debug_str:0000000000000265 .LASF27
+     /tmp/ccehoCYN.s:4737   .debug_str:0000000000000231 .LASF29
+     /tmp/ccehoCYN.s:4961   .debug_str:0000000000000975 .LASF31
+     /tmp/ccehoCYN.s:4813   .debug_str:00000000000004aa .LASF32
+     /tmp/ccehoCYN.s:4897   .debug_str:00000000000006cc .LASF34
+     /tmp/ccehoCYN.s:4705   .debug_str:0000000000000168 .LASF36
+     /tmp/ccehoCYN.s:4769   .debug_str:0000000000000340 .LASF37
+     /tmp/ccehoCYN.s:4965   .debug_str:000000000000098e .LASF156
+     /tmp/ccehoCYN.s:4783   .debug_str:00000000000003a7 .LASF157
+     /tmp/ccehoCYN.s:4787   .debug_str:00000000000003d9 .LASF38
+     /tmp/ccehoCYN.s:4963   .debug_str:0000000000000987 .LASF158
+     /tmp/ccehoCYN.s:4691   .debug_str:00000000000000f8 .LASF39
+     /tmp/ccehoCYN.s:4683   .debug_str:00000000000000c5 .LASF40
+     /tmp/ccehoCYN.s:4655   .debug_str:0000000000000000 .LASF41
+     /tmp/ccehoCYN.s:4793   .debug_str:00000000000003f4 .LASF42
+     /tmp/ccehoCYN.s:4867   .debug_str:000000000000061a .LASF43
+     /tmp/ccehoCYN.s:4893   .debug_str:00000000000006bf .LASF45
+     /tmp/ccehoCYN.s:4973   .debug_str:00000000000009c0 .LASF46
+     /tmp/ccehoCYN.s:4701   .debug_str:0000000000000148 .LASF47
+     /tmp/ccehoCYN.s:4661   .debug_str:0000000000000027 .LASF48
+     /tmp/ccehoCYN.s:4659   .debug_str:0000000000000016 .LASF49
+     /tmp/ccehoCYN.s:4875   .debug_str:0000000000000646 .LASF50
+     /tmp/ccehoCYN.s:4723   .debug_str:00000000000001de .LASF51
+     /tmp/ccehoCYN.s:4885   .debug_str:0000000000000685 .LASF52
+     /tmp/ccehoCYN.s:4811   .debug_str:0000000000000482 .LASF53
+     /tmp/ccehoCYN.s:4825   .debug_str:00000000000004fe .LASF159
+     /tmp/ccehoCYN.s:4711   .debug_str:0000000000000194 .LASF62
+     /tmp/ccehoCYN.s:4817   .debug_str:00000000000004c7 .LASF64
+     /tmp/ccehoCYN.s:4847   .debug_str:0000000000000596 .LASF95
+     /tmp/ccehoCYN.s:4765   .debug_str:0000000000000316 .LASF97
+     /tmp/ccehoCYN.s:4681   .debug_str:00000000000000b9 .LASF54
+     /tmp/ccehoCYN.s:4937   .debug_str:0000000000000896 .LASF55
+     /tmp/ccehoCYN.s:4835   .debug_str:0000000000000554 .LASF57
+     /tmp/ccehoCYN.s:4915   .debug_str:0000000000000809 .LASF56
+     /tmp/ccehoCYN.s:4729   .debug_str:0000000000000211 .LASF58
+     /tmp/ccehoCYN.s:4899   .debug_str:00000000000006d5 .LASF59
+     /tmp/ccehoCYN.s:4969   .debug_str:00000000000009a7 .LASF60
+     /tmp/ccehoCYN.s:4935   .debug_str:000000000000088f .LASF61
+     /tmp/ccehoCYN.s:4781   .debug_str:00000000000003a1 .LASF63
+     /tmp/ccehoCYN.s:4971   .debug_str:00000000000009ac .LASF65
+GAS LISTING /tmp/ccehoCYN.s 			page 48
+
+
+     /tmp/ccehoCYN.s:4657   .debug_str:0000000000000006 .LASF66
+     /tmp/ccehoCYN.s:4911   .debug_str:00000000000007ed .LASF67
+     /tmp/ccehoCYN.s:4945   .debug_str:0000000000000909 .LASF68
+     /tmp/ccehoCYN.s:4933   .debug_str:0000000000000887 .LASF69
+     /tmp/ccehoCYN.s:4785   .debug_str:00000000000003c3 .LASF71
+     /tmp/ccehoCYN.s:4751   .debug_str:00000000000002bf .LASF70
+     /tmp/ccehoCYN.s:4861   .debug_str:00000000000005da .LASF72
+     /tmp/ccehoCYN.s:4669   .debug_str:0000000000000058 .LASF73
+     /tmp/ccehoCYN.s:4709   .debug_str:000000000000018f .LASF74
+     /tmp/ccehoCYN.s:4967   .debug_str:00000000000009a2 .LASF75
+     /tmp/ccehoCYN.s:4873   .debug_str:0000000000000640 .LASF76
+     /tmp/ccehoCYN.s:4919   .debug_str:0000000000000825 .LASF77
+     /tmp/ccehoCYN.s:4707   .debug_str:0000000000000181 .LASF78
+     /tmp/ccehoCYN.s:4749   .debug_str:0000000000000293 .LASF86
+     /tmp/ccehoCYN.s:4857   .debug_str:00000000000005c8 .LASF160
+     /tmp/ccehoCYN.s:4869   .debug_str:0000000000000622 .LASF79
+     /tmp/ccehoCYN.s:4943   .debug_str:00000000000008f2 .LASF80
+     /tmp/ccehoCYN.s:4791   .debug_str:00000000000003ec .LASF81
+     /tmp/ccehoCYN.s:4761   .debug_str:00000000000002f6 .LASF82
+     /tmp/ccehoCYN.s:4849   .debug_str:00000000000005a0 .LASF83
+     /tmp/ccehoCYN.s:4939   .debug_str:00000000000008b1 .LASF84
+     /tmp/ccehoCYN.s:4743   .debug_str:0000000000000251 .LASF85
+     /tmp/ccehoCYN.s:4871   .debug_str:000000000000062b .LASF87
+     /tmp/ccehoCYN.s:4821   .debug_str:00000000000004e3 .LASF88
+     /tmp/ccehoCYN.s:4717   .debug_str:00000000000001b9 .LASF89
+     /tmp/ccehoCYN.s:4757   .debug_str:00000000000002e3 .LASF90
+     /tmp/ccehoCYN.s:4815   .debug_str:00000000000004af .LASF91
+     /tmp/ccehoCYN.s:4663   .debug_str:0000000000000037 .LASF92
+     /tmp/ccehoCYN.s:4889   .debug_str:000000000000069e .LASF93
+     /tmp/ccehoCYN.s:4689   .debug_str:00000000000000e4 .LASF94
+     /tmp/ccehoCYN.s:4713   .debug_str:000000000000019d .LASF96
+     /tmp/ccehoCYN.s:4923   .debug_str:000000000000083c .LASF98
+     /tmp/ccehoCYN.s:4891   .debug_str:00000000000006b8 .LASF99
+     /tmp/ccehoCYN.s:4903   .debug_str:00000000000007a1 .LASF100
+     /tmp/ccehoCYN.s:4819   .debug_str:00000000000004de .LASF101
+     /tmp/ccehoCYN.s:4957   .debug_str:000000000000094e .LASF102
+     /tmp/ccehoCYN.s:4671   .debug_str:0000000000000070 .LASF103
+     /tmp/ccehoCYN.s:4905   .debug_str:00000000000007ba .LASF104
+     /tmp/ccehoCYN.s:4947   .debug_str:0000000000000919 .LASF105
+     /tmp/ccehoCYN.s:4851   .debug_str:00000000000005a5 .LASF106
+     /tmp/ccehoCYN.s:4675   .debug_str:0000000000000088 .LASF107
+     /tmp/ccehoCYN.s:4665   .debug_str:000000000000003f .LASF108
+     /tmp/ccehoCYN.s:4741   .debug_str:000000000000024b .LASF109
+     /tmp/ccehoCYN.s:4807   .debug_str:0000000000000464 .LASF110
+     /tmp/ccehoCYN.s:4909   .debug_str:00000000000007e6 .LASF111
+     /tmp/ccehoCYN.s:4779   .debug_str:000000000000039b .LASF112
+     /tmp/ccehoCYN.s:4801   .debug_str:000000000000041e .LASF113
+     /tmp/ccehoCYN.s:4733   .debug_str:000000000000021d .LASF114
+     /tmp/ccehoCYN.s:4687   .debug_str:00000000000000d4 .LASF115
+     /tmp/ccehoCYN.s:4673   .debug_str:0000000000000076 .LASF116
+     /tmp/ccehoCYN.s:4679   .debug_str:00000000000000a7 .LASF117
+     /tmp/ccehoCYN.s:4913   .debug_str:00000000000007f6 .LASF118
+     /tmp/ccehoCYN.s:4841   .debug_str:000000000000056e .LASF119
+     /tmp/ccehoCYN.s:4951   .debug_str:0000000000000929 .LASF120
+     /tmp/ccehoCYN.s:4955   .debug_str:0000000000000943 .LASF121
+     /tmp/ccehoCYN.s:4917   .debug_str:0000000000000813 .LASF122
+     /tmp/ccehoCYN.s:4755   .debug_str:00000000000002cf .LASF137
+GAS LISTING /tmp/ccehoCYN.s 			page 49
+
+
+     /tmp/ccehoCYN.s:4803   .debug_str:000000000000042c .LASF139
+     /tmp/ccehoCYN.s:4731   .debug_str:0000000000000216 .LASF123
+     /tmp/ccehoCYN.s:4715   .debug_str:00000000000001a2 .LASF124
+     /tmp/ccehoCYN.s:4895   .debug_str:00000000000006c7 .LASF125
+     /tmp/ccehoCYN.s:4833   .debug_str:000000000000054a .LASF126
+     /tmp/ccehoCYN.s:4795   .debug_str:00000000000003fc .LASF127
+     /tmp/ccehoCYN.s:4921   .debug_str:000000000000082d .LASF128
+     /tmp/ccehoCYN.s:4879   .debug_str:000000000000066f .LASF129
+     /tmp/ccehoCYN.s:4797   .debug_str:0000000000000401 .LASF130
+     /tmp/ccehoCYN.s:4925   .debug_str:0000000000000853 .LASF131
+     /tmp/ccehoCYN.s:4725   .debug_str:00000000000001ef .LASF132
+     /tmp/ccehoCYN.s:4773   .debug_str:0000000000000370 .LASF133
+     /tmp/ccehoCYN.s:4865   .debug_str:0000000000000608 .LASF134
+     /tmp/ccehoCYN.s:4855   .debug_str:00000000000005bd .LASF135
+     /tmp/ccehoCYN.s:4823   .debug_str:00000000000004ec .LASF136
+     /tmp/ccehoCYN.s:4863   .debug_str:00000000000005f4 .LASF138
+     /tmp/ccehoCYN.s:4809   .debug_str:000000000000046e .LASF140
+     /tmp/ccehoCYN.s:4927   .debug_str:0000000000000865 .LASF141
+     /tmp/ccehoCYN.s:4929   .debug_str:000000000000087c .LASF142
+     /tmp/ccehoCYN.s:4949   .debug_str:000000000000091f .LASF161
+     /tmp/ccehoCYN.s:10     .text:0000000000000000 .LFB26
+     /tmp/ccehoCYN.s:87     .text:000000000000008c .LFE26
+     /tmp/ccehoCYN.s:4167   .debug_loc:0000000000000000 .LLST0
+     /tmp/ccehoCYN.s:4621   .debug_ranges:0000000000000000 .Ldebug_ranges0
+     /tmp/ccehoCYN.s:4174   .debug_loc:0000000000000023 .LLST1
+     /tmp/ccehoCYN.s:4185   .debug_loc:0000000000000059 .LLST2
+     /tmp/ccehoCYN.s:66     .text:0000000000000070 .LVL5
+     /tmp/ccehoCYN.s:47     .text:0000000000000040 .LVL3
+     /tmp/ccehoCYN.s:4735   .debug_str:0000000000000227 .LASF143
+     /tmp/ccehoCYN.s:93     .text:000000000000008c .LFB25
+     /tmp/ccehoCYN.s:1287   .text:000000000000054c .LFE25
+     /tmp/ccehoCYN.s:4881   .debug_str:0000000000000679 .LASF144
+     /tmp/ccehoCYN.s:4196   .debug_loc:000000000000008f .LLST3
+     /tmp/ccehoCYN.s:4217   .debug_loc:00000000000000ed .LLST4
+     /tmp/ccehoCYN.s:408    .text:00000000000001e4 .LBB8
+     /tmp/ccehoCYN.s:451    .text:0000000000000210 .LBE8
+     /tmp/ccehoCYN.s:4685   .debug_str:00000000000000ce .LASF145
+     /tmp/ccehoCYN.s:4248   .debug_loc:0000000000000182 .LLST5
+     /tmp/ccehoCYN.s:4255   .debug_loc:00000000000001a5 .LLST6
+     /tmp/ccehoCYN.s:425    .text:00000000000001f4 .LVL24
+     /tmp/ccehoCYN.s:429    .text:0000000000000200 .LVL25
+     /tmp/ccehoCYN.s:454    .text:0000000000000210 .LBB9
+     /tmp/ccehoCYN.s:487    .text:0000000000000234 .LBE9
+     /tmp/ccehoCYN.s:4262   .debug_loc:00000000000001c8 .LLST7
+     /tmp/ccehoCYN.s:471    .text:0000000000000220 .LVL29
+     /tmp/ccehoCYN.s:475    .text:000000000000022c .LVL30
+     /tmp/ccehoCYN.s:490    .text:0000000000000234 .LBB10
+     /tmp/ccehoCYN.s:535    .text:0000000000000260 .LBE10
+     /tmp/ccehoCYN.s:4269   .debug_loc:00000000000001eb .LLST8
+     /tmp/ccehoCYN.s:4276   .debug_loc:000000000000020e .LLST9
+     /tmp/ccehoCYN.s:4284   .debug_loc:0000000000000233 .LLST10
+     /tmp/ccehoCYN.s:4292   .debug_loc:0000000000000258 .LLST11
+     /tmp/ccehoCYN.s:4300   .debug_loc:000000000000027d .LLST12
+     /tmp/ccehoCYN.s:513    .text:0000000000000250 .LVL34
+     /tmp/ccehoCYN.s:538    .text:0000000000000260 .LBB11
+     /tmp/ccehoCYN.s:586    .text:0000000000000298 .LBE11
+     /tmp/ccehoCYN.s:4307   .debug_loc:00000000000002a0 .LLST13
+GAS LISTING /tmp/ccehoCYN.s 			page 50
+
+
+     /tmp/ccehoCYN.s:4314   .debug_loc:00000000000002c3 .LLST14
+     /tmp/ccehoCYN.s:562    .text:0000000000000284 .LVL38
+     /tmp/ccehoCYN.s:589    .text:0000000000000298 .LBB12
+     /tmp/ccehoCYN.s:632    .text:00000000000002b8 .LBE12
+     /tmp/ccehoCYN.s:4322   .debug_loc:00000000000002e7 .LLST15
+     /tmp/ccehoCYN.s:4953   .debug_str:000000000000093b .LASF146
+     /tmp/ccehoCYN.s:4329   .debug_loc:000000000000030a .LLST16
+     /tmp/ccehoCYN.s:615    .text:00000000000002ac .LVL43
+     /tmp/ccehoCYN.s:635    .text:00000000000002b8 .LBB13
+     /tmp/ccehoCYN.s:668    .text:00000000000002dc .LBE13
+     /tmp/ccehoCYN.s:4336   .debug_loc:000000000000032d .LLST17
+     /tmp/ccehoCYN.s:652    .text:00000000000002c8 .LVL47
+     /tmp/ccehoCYN.s:656    .text:00000000000002d4 .LVL48
+     /tmp/ccehoCYN.s:671    .text:00000000000002dc .LBB14
+     /tmp/ccehoCYN.s:714    .text:0000000000000304 .LBE14
+     /tmp/ccehoCYN.s:4343   .debug_loc:0000000000000350 .LLST18
+     /tmp/ccehoCYN.s:4977   .debug_str:00000000000009d6 .LASF147
+     /tmp/ccehoCYN.s:4350   .debug_loc:0000000000000373 .LLST19
+     /tmp/ccehoCYN.s:4845   .debug_str:0000000000000591 .LASF148
+     /tmp/ccehoCYN.s:4358   .debug_loc:0000000000000398 .LLST20
+     /tmp/ccehoCYN.s:4366   .debug_loc:00000000000003bd .LLST21
+     /tmp/ccehoCYN.s:692    .text:00000000000002f4 .LVL52
+     /tmp/ccehoCYN.s:717    .text:0000000000000304 .LBB15
+     /tmp/ccehoCYN.s:758    .text:0000000000000328 .LBE15
+     /tmp/ccehoCYN.s:4373   .debug_loc:00000000000003e0 .LLST22
+     /tmp/ccehoCYN.s:4380   .debug_loc:0000000000000403 .LLST23
+     /tmp/ccehoCYN.s:4388   .debug_loc:0000000000000428 .LLST24
+     /tmp/ccehoCYN.s:736    .text:0000000000000318 .LVL56
+     /tmp/ccehoCYN.s:761    .text:0000000000000328 .LBB16
+     /tmp/ccehoCYN.s:816    .text:0000000000000354 .LBE16
+     /tmp/ccehoCYN.s:4395   .debug_loc:000000000000044b .LLST25
+     /tmp/ccehoCYN.s:4402   .debug_loc:000000000000046e .LLST26
+     /tmp/ccehoCYN.s:4409   .debug_loc:0000000000000491 .LLST27
+     /tmp/ccehoCYN.s:4417   .debug_loc:00000000000004b6 .LLST28
+     /tmp/ccehoCYN.s:789    .text:0000000000000340 .LVL61
+     /tmp/ccehoCYN.s:819    .text:0000000000000354 .LBB17
+     /tmp/ccehoCYN.s:860    .text:0000000000000378 .LBE17
+     /tmp/ccehoCYN.s:4424   .debug_loc:00000000000004d9 .LLST29
+     /tmp/ccehoCYN.s:4431   .debug_loc:00000000000004fc .LLST30
+     /tmp/ccehoCYN.s:4439   .debug_loc:0000000000000521 .LLST31
+     /tmp/ccehoCYN.s:838    .text:0000000000000368 .LVL65
+     /tmp/ccehoCYN.s:863    .text:0000000000000378 .LBB18
+     /tmp/ccehoCYN.s:908    .text:000000000000039c .LBE18
+     /tmp/ccehoCYN.s:4446   .debug_loc:0000000000000544 .LLST32
+     /tmp/ccehoCYN.s:4453   .debug_loc:0000000000000567 .LLST33
+     /tmp/ccehoCYN.s:4460   .debug_loc:000000000000058a .LLST34
+     /tmp/ccehoCYN.s:891    .text:0000000000000390 .LVL70
+     /tmp/ccehoCYN.s:911    .text:000000000000039c .LBB19
+     /tmp/ccehoCYN.s:966    .text:00000000000003d0 .LBE19
+     /tmp/ccehoCYN.s:4468   .debug_loc:00000000000005af .LLST35
+     /tmp/ccehoCYN.s:4475   .debug_loc:00000000000005d2 .LLST36
+     /tmp/ccehoCYN.s:4482   .debug_loc:00000000000005f5 .LLST37
+     /tmp/ccehoCYN.s:939    .text:00000000000003bc .LVL75
+     /tmp/ccehoCYN.s:969    .text:00000000000003d0 .LBB20
+     /tmp/ccehoCYN.s:1019   .text:0000000000000408 .LBE20
+     /tmp/ccehoCYN.s:4489   .debug_loc:0000000000000618 .LLST38
+     /tmp/ccehoCYN.s:4496   .debug_loc:000000000000063b .LLST39
+GAS LISTING /tmp/ccehoCYN.s 			page 51
+
+
+     /tmp/ccehoCYN.s:998    .text:00000000000003f4 .LVL80
+     /tmp/ccehoCYN.s:1002   .text:00000000000003fc .LVL81
+     /tmp/ccehoCYN.s:1022   .text:0000000000000408 .LBB21
+     /tmp/ccehoCYN.s:1065   .text:0000000000000424 .LBE21
+     /tmp/ccehoCYN.s:4503   .debug_loc:000000000000065e .LLST40
+     /tmp/ccehoCYN.s:4753   .debug_str:00000000000002ca .LASF149
+     /tmp/ccehoCYN.s:4510   .debug_loc:0000000000000681 .LLST41
+     /tmp/ccehoCYN.s:1068   .text:0000000000000424 .LBB22
+     /tmp/ccehoCYN.s:1111   .text:0000000000000440 .LBE22
+     /tmp/ccehoCYN.s:4517   .debug_loc:00000000000006a4 .LLST42
+     /tmp/ccehoCYN.s:4524   .debug_loc:00000000000006c7 .LLST43
+     /tmp/ccehoCYN.s:4531   .debug_loc:00000000000006ea .LLST44
+     /tmp/ccehoCYN.s:4542   .debug_loc:0000000000000720 .LLST45
+     /tmp/ccehoCYN.s:1124   .text:0000000000000454 .LVL93
+     /tmp/ccehoCYN.s:377    .text:00000000000001b8 .LBB31
+     /tmp/ccehoCYN.s:394    .text:00000000000001e0 .LBE31
+     /tmp/ccehoCYN.s:4549   .debug_loc:0000000000000743 .LLST46
+     /tmp/ccehoCYN.s:4556   .debug_loc:0000000000000766 .LLST47
+     /tmp/ccehoCYN.s:388    .text:00000000000001d8 .LVL20
+     /tmp/ccehoCYN.s:369    .text:00000000000001a8 .LVL18
+     /tmp/ccehoCYN.s:1134   .text:0000000000000464 .LVL95
+     /tmp/ccehoCYN.s:4563   .debug_loc:0000000000000789 .LLST48
+     /tmp/ccehoCYN.s:4931   .debug_str:0000000000000882 .LASF150
+     /tmp/ccehoCYN.s:4570   .debug_loc:00000000000007ac .LLST49
+     /tmp/ccehoCYN.s:4581   .debug_loc:00000000000007e2 .LLST50
+     /tmp/ccehoCYN.s:1152   .text:0000000000000474 .LBB37
+     /tmp/ccehoCYN.s:1204   .text:00000000000004ec .LBE37
+     /tmp/ccehoCYN.s:4592   .debug_loc:0000000000000818 .LLST51
+     /tmp/ccehoCYN.s:1197   .text:00000000000004dc .LVL102
+     /tmp/ccehoCYN.s:1201   .text:00000000000004e8 .LVL103
+     /tmp/ccehoCYN.s:1282   .text:0000000000000548 .LVL108
+     /tmp/ccehoCYN.s:313    .text:000000000000013c .LVL13
+     /tmp/ccehoCYN.s:4837   .debug_str:0000000000000559 .LASF151
+     /tmp/ccehoCYN.s:4789   .debug_str:00000000000003e1 .LASF152
+     /tmp/ccehoCYN.s:30     .text:0000000000000024 .LVL0
+     /tmp/ccehoCYN.s:82     .text:0000000000000084 .LVL7
+     /tmp/ccehoCYN.s:32     .text:0000000000000028 .LVL1
+     /tmp/ccehoCYN.s:38     .text:000000000000002c .LVL2
+     /tmp/ccehoCYN.s:60     .text:000000000000005c .LVL4
+     /tmp/ccehoCYN.s:69     .text:0000000000000074 .LVL6
+     /tmp/ccehoCYN.s:165    .text:00000000000000cc .LVL8
+     /tmp/ccehoCYN.s:178    .text:00000000000000f0 .LVL9
+     /tmp/ccehoCYN.s:199    .text:0000000000000100 .LVL11
+     /tmp/ccehoCYN.s:296    .text:0000000000000124 .LVL12
+     /tmp/ccehoCYN.s:1136   .text:0000000000000468 .LVL96
+     /tmp/ccehoCYN.s:1148   .text:0000000000000470 .LVL97
+     /tmp/ccehoCYN.s:194    .text:00000000000000fc .LVL10
+     /tmp/ccehoCYN.s:397    .text:00000000000001e4 .LVL21
+     /tmp/ccehoCYN.s:462    .text:0000000000000214 .LVL27
+     /tmp/ccehoCYN.s:485    .text:0000000000000234 .LVL31
+     /tmp/ccehoCYN.s:597    .text:000000000000029c .LVL40
+     /tmp/ccehoCYN.s:630    .text:00000000000002b8 .LVL44
+     /tmp/ccehoCYN.s:643    .text:00000000000002bc .LVL45
+     /tmp/ccehoCYN.s:666    .text:00000000000002dc .LVL49
+     /tmp/ccehoCYN.s:871    .text:000000000000037c .LVL67
+     /tmp/ccehoCYN.s:906    .text:000000000000039c .LVL71
+     /tmp/ccehoCYN.s:977    .text:00000000000003d4 .LVL77
+GAS LISTING /tmp/ccehoCYN.s 			page 52
+
+
+     /tmp/ccehoCYN.s:1017   .text:0000000000000408 .LVL82
+     /tmp/ccehoCYN.s:1109   .text:0000000000000440 .LVL92
+     /tmp/ccehoCYN.s:416    .text:00000000000001e8 .LVL22
+     /tmp/ccehoCYN.s:449    .text:0000000000000210 .LVL26
+     /tmp/ccehoCYN.s:498    .text:0000000000000238 .LVL32
+     /tmp/ccehoCYN.s:533    .text:0000000000000260 .LVL35
+     /tmp/ccehoCYN.s:503    .text:000000000000023c .LVL33
+     /tmp/ccehoCYN.s:546    .text:0000000000000264 .LVL36
+     /tmp/ccehoCYN.s:584    .text:0000000000000298 .LVL39
+     /tmp/ccehoCYN.s:610    .text:00000000000002a4 .LVL42
+     /tmp/ccehoCYN.s:679    .text:00000000000002e0 .LVL50
+     /tmp/ccehoCYN.s:712    .text:0000000000000304 .LVL53
+     /tmp/ccehoCYN.s:684    .text:00000000000002e4 .LVL51
+     /tmp/ccehoCYN.s:725    .text:0000000000000308 .LVL54
+     /tmp/ccehoCYN.s:756    .text:0000000000000328 .LVL57
+     /tmp/ccehoCYN.s:730    .text:000000000000030c .LVL55
+     /tmp/ccehoCYN.s:769    .text:000000000000032c .LVL58
+     /tmp/ccehoCYN.s:814    .text:0000000000000354 .LVL62
+     /tmp/ccehoCYN.s:782    .text:0000000000000334 .LVL60
+     /tmp/ccehoCYN.s:827    .text:0000000000000358 .LVL63
+     /tmp/ccehoCYN.s:858    .text:0000000000000378 .LVL66
+     /tmp/ccehoCYN.s:832    .text:000000000000035c .LVL64
+     /tmp/ccehoCYN.s:884    .text:0000000000000384 .LVL69
+     /tmp/ccehoCYN.s:919    .text:00000000000003a0 .LVL72
+     /tmp/ccehoCYN.s:964    .text:00000000000003d0 .LVL76
+     /tmp/ccehoCYN.s:932    .text:00000000000003a8 .LVL74
+     /tmp/ccehoCYN.s:990    .text:00000000000003dc .LVL79
+     /tmp/ccehoCYN.s:1030   .text:000000000000040c .LVL83
+     /tmp/ccehoCYN.s:1063   .text:0000000000000424 .LVL87
+     /tmp/ccehoCYN.s:1037   .text:0000000000000410 .LVL84
+     /tmp/ccehoCYN.s:1076   .text:0000000000000428 .LVL88
+     /tmp/ccehoCYN.s:1083   .text:000000000000042c .LVL89
+     /tmp/ccehoCYN.s:322    .text:0000000000000150 .LVL14
+     /tmp/ccehoCYN.s:335    .text:0000000000000168 .LVL15
+     /tmp/ccehoCYN.s:341    .text:0000000000000170 .LVL16
+     /tmp/ccehoCYN.s:382    .text:00000000000001c4 .LVL19
+     /tmp/ccehoCYN.s:1150   .text:0000000000000474 .LVL98
+     /tmp/ccehoCYN.s:1212   .text:00000000000004f0 .LVL104
+     /tmp/ccehoCYN.s:1250   .text:0000000000000520 .LVL106
+     /tmp/ccehoCYN.s:1271   .text:000000000000053c .LVL107
+     /tmp/ccehoCYN.s:1219   .text:00000000000004f4 .LVL105
+     /tmp/ccehoCYN.s:1156   .text:000000000000047c .LVL99
+     /tmp/ccehoCYN.s:1160   .text:0000000000000480 .LVL100
+     /tmp/ccehoCYN.s:1163   .text:0000000000000484 .LVL101
+     /tmp/ccehoCYN.s:1300   .debug_info:0000000000000000 .Ldebug_info0
+     /tmp/ccehoCYN.s:34     .text:0000000000000028 .LBB2
+     /tmp/ccehoCYN.s:40     .text:000000000000002c .LBE2
+     /tmp/ccehoCYN.s:55     .text:0000000000000050 .LBB3
+     /tmp/ccehoCYN.s:71     .text:0000000000000074 .LBE3
+     /tmp/ccehoCYN.s:186    .text:00000000000000f8 .LBB5
+     /tmp/ccehoCYN.s:299    .text:0000000000000124 .LBE5
+     /tmp/ccehoCYN.s:403    .text:00000000000001e4 .LBB34
+     /tmp/ccehoCYN.s:1114   .text:0000000000000440 .LBE34
+     /tmp/ccehoCYN.s:317    .text:0000000000000144 .LBB25
+     /tmp/ccehoCYN.s:401    .text:00000000000001e4 .LBE25
+     /tmp/ccehoCYN.s:1116   .text:0000000000000440 .LBB33
+     /tmp/ccehoCYN.s:1138   .text:0000000000000468 .LBE33
+GAS LISTING /tmp/ccehoCYN.s 			page 53
+
+
+     /tmp/ccehoCYN.s:330    .text:000000000000015c .LBB27
+     /tmp/ccehoCYN.s:352    .text:0000000000000188 .LBE27
+     /tmp/ccehoCYN.s:1118   .text:0000000000000440 .LBB28
+     /tmp/ccehoCYN.s:1128   .text:0000000000000458 .LBE28
+     /tmp/ccehoCYN.s:1144   .text:0000000000000468 .LBB36
+     /tmp/ccehoCYN.s:1253   .text:0000000000000520 .LBE36
+     /tmp/ccehoCYN.s:1275   .text:000000000000053c .LBB38
+     /tmp/ccehoCYN.s:1284   .text:000000000000054c .LBE38
+
+UNDEFINED SYMBOLS
+CONSOLE_STATUS
+_ZN9PutBuffer9putBufferE
+_ZN9PutBuffer6getCntEv
+CONSOLE_TX_DATA
+_ZN9PutBuffer3getEv
+plic_claim
+CONSOLE_RX_DATA
+_ZN14PeriodicThread4flagE
+_ZN15MemoryAllocator11getInstanceEv
+_ZN15MemoryAllocator8allocateEm
+_ZN15MemoryAllocator10deallocateEPv
+_ZN7CThread12createThreadEPPS_PFvPvES2_
+_ZN7CThread7runningE
+_ZN7CThread5yieldEv
+_ZN9Scheduler11getInstanceEv
+_ZN9Scheduler3putEP7CThread
+_ZN10CSemaphore4openEPPS_j
+_ZN10CSemaphore5closeEPS_
+_ZN10CSemaphore4waitEv
+_ZN10CSemaphore6signalEv
+_ZN5Sleep5sleepEm
+_ZN9GetBuffer9getBufferE
+_ZN9GetBuffer3getEv
+_ZN9PutBuffer3putEc
+_ZN9GetBuffer3putEc
+plic_complete
+_ZN5Sleep9headSleepE
+_ZN5Sleep5countE
+_ZN7CThread4timeE
